@@ -1,0 +1,36 @@
+/* Estilos personalizados para el modal de proveedores */
+.modal-scroll-container {
+  /* Estilo de la barra de scroll */
+  scrollbar-width: thin;
+  scrollbar-color: #10b981 #f3f4f6;
+}
+
+.modal-scroll-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-scroll-container::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
+.modal-scroll-container::-webkit-scrollbar-thumb {
+  background: #10b981;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.modal-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #059669;
+}
+
+/* Animación suave para el scroll */
+.modal-scroll-container {
+  scroll-behavior: smooth;
+}
+
+/* Estilo para el contenido del modal */
+.modal-content {
+  scroll-padding-top: 1rem;
+  scroll-padding-bottom: 1rem;
+}

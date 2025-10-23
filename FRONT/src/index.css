@@ -1,0 +1,1922 @@
+/* Tailwind CSS directives - these are valid Tailwind directives */
+/* Updated: 2025-01-27 - Dark mode fixes for inventory cards and garden modal buttons */
+
+/* Reglas específicas para botones de jardín en modo oscuro */
+.dark button.bg-eco-mountain-meadow {
+  color: white !important;
+}
+
+.dark button.text-white {
+  color: white !important;
+}
+
+.dark button[class*="Acceder al Jardín"] {
+  color: white !important;
+}
+
+.dark .w-full.bg-eco-mountain-meadow.text-white {
+  color: white !important;
+}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom colors - Nueva paleta EcoVertical */
+:root {
+  /* Colores principales - Modo claro */
+  --eco-cape-cod: #383939;
+  --eco-mountain-meadow: #159e69;
+  --eco-emerald: #37c856;
+  --eco-pear: #afe637;
+  --eco-scotch-mist: #fffedb;
+  
+  /* Variaciones para mejor UX */
+  --eco-cape-cod-light: #4a4a4a;
+  --eco-cape-cod-dark: #2a2a2a;
+  --eco-mountain-meadow-light: #1fb876;
+  --eco-mountain-meadow-dark: #0f7a4f;
+  --eco-emerald-light: #4ddb6a;
+  --eco-emerald-dark: #2bb042;
+  --eco-pear-light: #c2f04a;
+  --eco-pear-dark: #9bc92a;
+  --eco-scotch-mist-dark: #f0f0c7;
+
+  /* Colores de fondo y texto - Modo claro (conservando paleta pastel) */
+  --bg-primary: #fffedb; /* eco-scotch-mist - color pastel característico */
+  --bg-secondary: #ffffff; /* blanco puro */
+  --bg-tertiary: #f0f0c7; /* eco-scotch-mist-dark - variación del pastel */
+  --text-primary: #383939; /* eco-cape-cod - texto principal */
+  --text-secondary: #4a4a4a; /* eco-cape-cod-light - texto secundario */
+  --text-tertiary: #6b7280; /* gris medio para texto terciario */
+  
+  /* Clases para componentes de UI (tooltips, etc.) */
+  --background: #ffffff;
+  --foreground: #383939;
+  --muted-foreground: #6b7280;
+  --border: #e5e7eb;
+  --border-primary: #afe637; /* eco-pear - bordes con color característico */
+  --border-secondary: #c2f04a; /* eco-pear-light - bordes secundarios */
+}
+
+/* Modo oscuro */
+.dark {
+  /* Colores principales - Modo oscuro sin pasteles */
+  --eco-cape-cod: #f8fafc;
+  --eco-mountain-meadow: #10b981;
+  --eco-emerald: #059669;
+  --eco-pear: #65a30d;
+  --eco-scotch-mist: #0f172a;
+
+  /* Variaciones para modo oscuro sin pasteles */
+  --eco-cape-cod-light: #ffffff;
+  --eco-cape-cod-dark: #e2e8f0;
+  --eco-mountain-meadow-light: #34d399;
+  --eco-mountain-meadow-dark: #047857;
+  --eco-emerald-light: #10b981;
+  --eco-emerald-dark: #047857;
+  --eco-pear-light: #84cc16;
+  --eco-pear-dark: #4d7c0f;
+  --eco-scotch-mist-dark: #1e293b;
+
+  /* Colores de fondo y texto - Modo oscuro con tonos azules */
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --text-primary: #ffffff;
+  --text-secondary: #e2e8f0;
+  --text-tertiary: #94a3b8;
+  --border-primary: #475569;
+  --border-secondary: #64748b;
+  
+  /* Clases para componentes de UI (tooltips, etc.) - Modo oscuro */
+  --background: #1e293b;
+  --foreground: #f8fafc;
+  --muted-foreground: #94a3b8;
+  --border: #475569;
+}
+
+/* Clases para componentes de UI (tooltips, charts, etc.) */
+.bg-background {
+  background-color: var(--background);
+}
+
+.text-foreground {
+  color: var(--foreground);
+}
+
+.text-muted-foreground {
+  color: var(--muted-foreground);
+}
+
+.border-border {
+  border-color: var(--border);
+}
+
+/* Reglas específicas para tooltips de gráficos en modo oscuro */
+.dark .recharts-tooltip-wrapper .font-medium {
+  color: var(--foreground) !important;
+}
+
+.dark .recharts-tooltip-wrapper .text-muted-foreground {
+  color: var(--muted-foreground) !important;
+}
+
+.dark .recharts-tooltip-wrapper .text-foreground {
+  color: var(--foreground) !important;
+}
+
+.dark .recharts-tooltip-wrapper .bg-background {
+  background-color: var(--background) !important;
+}
+
+.dark .recharts-tooltip-wrapper .border-border {
+  border-color: var(--border) !important;
+}
+
+/* Reglas más específicas para elementos dentro del tooltip */
+.dark .recharts-tooltip-wrapper div {
+  color: var(--foreground) !important;
+}
+
+.dark .recharts-tooltip-wrapper span {
+  color: var(--foreground) !important;
+}
+
+.dark .recharts-tooltip-wrapper p {
+  color: var(--foreground) !important;
+}
+
+/* Clases de utilidad para tema */
+.bg-theme-primary {
+  background-color: var(--bg-primary);
+}
+
+.bg-theme-secondary {
+  background-color: var(--bg-secondary);
+}
+
+.bg-theme-tertiary {
+  background-color: var(--bg-tertiary);
+}
+
+.text-theme-primary {
+  color: var(--text-primary);
+}
+
+.text-theme-secondary {
+  color: var(--text-secondary);
+}
+
+.text-theme-tertiary {
+  color: var(--text-tertiary);
+}
+
+.border-theme-primary {
+  border-color: var(--border-primary);
+}
+
+.border-theme-secondary {
+  border-color: var(--border-secondary);
+}
+
+/* Custom animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bounce-soft {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+/* Modal animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Asegurar que los modales tengan el z-index correcto */
+.modal-overlay {
+  z-index: 9999 !important;
+}
+
+/* Prevenir scroll cuando hay modales abiertos */
+body.modal-open {
+  overflow: hidden !important;
+}
+
+/* Clase para elementos accesibles solo para lectores de pantalla */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Mejoras de accesibilidad para focus */
+.focus-visible:focus {
+  outline: 2px solid var(--eco-mountain-meadow);
+  outline-offset: 2px;
+}
+
+/* Mejorar contraste para elementos interactivos */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--eco-mountain-meadow);
+  outline-offset: 2px;
+}
+
+/* Utility classes */
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.3s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out;
+}
+
+.animate-bounce-soft {
+  animation: bounce-soft 2s ease-in-out infinite;
+}
+
+/* Custom gradient text - Actualizado con nueva paleta */
+.eco-text-gradient {
+  background: linear-gradient(135deg, var(--eco-mountain-meadow), var(--eco-emerald));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.eco-text-gradient-secondary {
+  background: linear-gradient(135deg, var(--eco-emerald), var(--eco-pear));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Gradientes de fondo mejorados */
+.eco-gradient-primary {
+  background: linear-gradient(135deg, var(--eco-mountain-meadow), var(--eco-emerald));
+}
+
+.eco-gradient-secondary {
+  background: linear-gradient(135deg, var(--eco-emerald), var(--eco-pear));
+}
+
+.eco-gradient-accent {
+  background: linear-gradient(135deg, var(--eco-pear), var(--eco-scotch-mist));
+}
+
+/* Custom shadows */
+.shadow-soft {
+  box-shadow: 0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04);
+}
+
+.shadow-medium {
+  box-shadow: 0 4px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Line clamp utility */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Custom scrollbar - Actualizado con nueva paleta */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--eco-scotch-mist-dark);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--eco-mountain-meadow);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--eco-mountain-meadow-dark);
+}
+
+/* Estilos adicionales para mejor UX */
+.eco-card {
+  background: var(--eco-scotch-mist);
+  border: 1px solid var(--eco-pear);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(56, 200, 88, 0.1), 0 2px 4px -1px rgba(56, 200, 88, 0.06);
+}
+
+.eco-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(56, 200, 88, 0.1), 0 4px 6px -2px rgba(56, 200, 88, 0.05);
+  transform: translateY(-2px);
+  transition: all 0.3s ease;
+}
+
+.eco-button-primary {
+  background: var(--eco-mountain-meadow);
+  color: white;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.eco-button-primary:hover {
+  background: var(--eco-mountain-meadow-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(21, 158, 105, 0.3);
+}
+
+.eco-button-secondary {
+  background: var(--eco-emerald);
+  color: white;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.eco-button-secondary:hover {
+  background: var(--eco-emerald-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(55, 200, 86, 0.3);
+}
+
+.eco-button-accent {
+  background: var(--eco-pear);
+  color: var(--eco-cape-cod);
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+/* Estilos para notificaciones mejoradas */
+.notification-enhanced {
+  background: rgba(0, 0, 0, 0.1) !important;
+  backdrop-filter: blur(15px);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.notification-text-enhanced {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  font-weight: 600;
+  color: white !important;
+}
+
+.notification-title-enhanced {
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  font-weight: 800;
+  color: white !important;
+}
+
+/* Estilos específicos para modo oscuro */
+.dark {
+  /* Scrollbar personalizado para modo oscuro */
+  ::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--eco-mountain-meadow);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--eco-emerald);
+  }
+
+  /* Cards en modo oscuro */
+  .eco-card {
+    background: var(--bg-secondary);
+    border-color: var(--border-primary);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  }
+
+  .eco-card:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Mejoras específicas para componentes principales */
+  .dark .bg-white {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+  }
+
+  .dark .text-eco-cape-cod {
+    color: var(--text-primary) !important;
+  }
+
+  .dark .text-eco-cape-cod\/70 {
+    color: var(--text-secondary) !important;
+  }
+
+  .dark .text-eco-cape-cod\/80 {
+    color: var(--text-primary) !important;
+  }
+
+  .dark .text-eco-cape-cod\/60 {
+    color: var(--text-tertiary) !important;
+  }
+
+  .dark .bg-eco-scotch-mist {
+    background-color: var(--bg-primary) !important;
+  }
+
+  .dark .bg-eco-scotch-mist\/98 {
+    background-color: var(--bg-primary) !important;
+  }
+
+  .dark .bg-eco-scotch-mist\/95 {
+    background-color: var(--bg-primary) !important;
+  }
+
+  .dark .border-eco-cape-cod\/10 {
+    border-color: var(--border-primary) !important;
+    border-width: 1px !important;
+  }
+
+  .dark .border-eco-pear\/30 {
+    border-color: var(--border-secondary) !important;
+    border-width: 1px !important;
+  }
+
+  /* Bordes más visibles para modo oscuro */
+  .dark .border {
+    border-color: var(--border-primary) !important;
+    border-width: 1px !important;
+  }
+
+  .dark .border-2 {
+    border-color: var(--border-secondary) !important;
+    border-width: 2px !important;
+  }
+
+  /* Bordes específicos para cards */
+  .dark .rounded-xl {
+    border: 1px solid var(--border-primary) !important;
+  }
+
+  .dark .rounded-3xl {
+    border: 1px solid var(--border-primary) !important;
+  }
+
+  .dark .rounded-lg {
+    border: 1px solid var(--border-primary) !important;
+  }
+
+  /* Bordes más prominentes para elementos importantes */
+  .dark .shadow-soft {
+    border: 1px solid var(--border-secondary) !important;
+  }
+
+  .dark .shadow-medium {
+    border: 1px solid var(--border-secondary) !important;
+  }
+
+  .dark .shadow-strong {
+    border: 1px solid var(--border-secondary) !important;
+  }
+
+  .dark .bg-eco-pear\/10 {
+    background-color: var(--bg-tertiary) !important;
+  }
+
+  .dark .bg-eco-pear\/20 {
+    background-color: var(--bg-tertiary) !important;
+  }
+
+  /* Estilos para formularios y inputs */
+  .dark input {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-primary) !important;
+  }
+
+  .dark input:focus {
+    border-color: var(--eco-mountain-meadow) !important;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2) !important;
+  }
+
+  .dark textarea {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-primary) !important;
+  }
+
+  .dark select {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-primary) !important;
+  }
+
+  /* Estilos para botones */
+  .dark button {
+    color: var(--text-primary) !important;
+  }
+
+  .dark .bg-gray-50 {
+    background-color: var(--bg-tertiary) !important;
+  }
+
+  .dark .bg-gray-100 {
+    background-color: var(--bg-tertiary) !important;
+  }
+
+  .dark .bg-gray-200 {
+    background-color: var(--border-primary) !important;
+  }
+
+  .dark .text-gray-600 {
+    color: var(--text-secondary) !important;
+  }
+
+  .dark .text-gray-700 {
+    color: var(--text-primary) !important;
+  }
+
+  .dark .text-gray-500 {
+    color: var(--text-tertiary) !important;
+  }
+
+  .dark .border-gray-200 {
+    border-color: var(--border-primary) !important;
+  }
+
+  .dark .border-gray-300 {
+    border-color: var(--border-secondary) !important;
+  }
+
+  /* Estilos para modales */
+  .dark .modal-overlay {
+    background-color: rgba(0, 0, 0, 0.8) !important;
+  }
+
+  /* Estilos para cards y contenedores - Sin pasteles */
+  .dark .bg-gradient-to-br {
+    background: linear-gradient(to bottom right, var(--bg-tertiary), var(--bg-secondary)) !important;
+  }
+
+  /* Eliminar colores pastel específicos en modo oscuro */
+  .dark .bg-eco-scotch-mist {
+    background-color: var(--bg-primary) !important;
+  }
+
+  .dark .from-eco-scotch-mist {
+    background-color: var(--bg-primary) !important;
+  }
+
+  .dark .to-eco-pear\/10 {
+    background-color: var(--bg-tertiary) !important;
+  }
+
+  .dark .from-eco-pear\/10 {
+    background-color: var(--bg-tertiary) !important;
+  }
+
+  .dark .bg-eco-pear\/10 {
+    background-color: var(--bg-tertiary) !important;
+  }
+
+  .dark .bg-eco-pear\/20 {
+    background-color: var(--bg-tertiary) !important;
+  }
+
+  /* Gradientes sin pasteles para modo oscuro */
+  .dark .bg-gradient-to-br.from-eco-scotch-mist {
+    background: linear-gradient(to bottom right, var(--bg-primary), var(--bg-tertiary)) !important;
+  }
+
+  .dark .bg-gradient-to-br.to-eco-pear\/10 {
+    background: linear-gradient(to bottom right, var(--bg-tertiary), var(--bg-secondary)) !important;
+  }
+
+  .dark .bg-gradient-to-br.from-eco-pear\/10 {
+    background: linear-gradient(to bottom right, var(--bg-tertiary), var(--bg-secondary)) !important;
+  }
+
+  /* Sombras mejoradas para modo oscuro */
+  .dark .shadow-soft {
+    box-shadow: 0 2px 15px -3px rgba(0, 0, 0, 0.5), 0 10px 20px -2px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  .dark .shadow-medium {
+    box-shadow: 0 4px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.4) !important;
+  }
+
+  .dark .shadow-strong {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.7), 0 10px 10px -5px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  /* Estilos adicionales para textos específicos */
+  .dark .text-gray-900 {
+    color: var(--text-primary) !important;
+  }
+
+  .dark .text-gray-800 {
+    color: var(--text-primary) !important;
+  }
+
+  .dark .text-gray-400 {
+    color: var(--text-secondary) !important;
+  }
+
+  .dark .text-gray-300 {
+    color: var(--text-secondary) !important;
+  }
+
+  .dark .text-gray-200 {
+    color: var(--text-primary) !important;
+  }
+
+  .dark .text-gray-100 {
+    color: var(--text-primary) !important;
+  }
+
+  /* Estilos para elementos específicos que podrían tener texto oscuro */
+  .dark .huertotech-text-gradient {
+    background: linear-gradient(135deg, var(--eco-mountain-meadow), var(--eco-emerald)) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+  }
+
+  /* Asegurar que todos los textos principales sean blancos */
+  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+    color: var(--text-primary) !important;
+  }
+
+  .dark p {
+    color: var(--text-primary) !important;
+  }
+
+  .dark span {
+    color: var(--text-primary) !important;
+  }
+
+  .dark div {
+    color: var(--text-primary) !important;
+  }
+
+  /* Transiciones suaves para cambio de tema */
+  * {
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* Estilos específicos para la página de alertas de riego */
+  .dark .irrigation-alert-card {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--border-primary) !important;
+    color: var(--text-primary) !important;
+  }
+
+  .dark .irrigation-alert-card:hover {
+    background-color: var(--bg-tertiary) !important;
+    border-color: var(--border-secondary) !important;
+  }
+
+  .dark .irrigation-alert-text {
+    color: var(--text-primary) !important;
+  }
+
+  .dark .irrigation-alert-secondary-text {
+    color: var(--text-secondary) !important;
+  }
+
+  .dark .irrigation-alert-tertiary-text {
+    color: var(--text-tertiary) !important;
+  }
+
+  /* Override para usar tonos azules en lugar de grises */
+  .dark .bg-gray-800 {
+    background-color: var(--bg-secondary) !important;
+  }
+
+  .dark .bg-gray-700 {
+    background-color: var(--bg-tertiary) !important;
+  }
+
+  .dark .border-gray-600 {
+    border-color: var(--border-primary) !important;
+  }
+
+  /* Estilos específicos para tarjetas de inventario */
+  .dark .bg-white {
+    background-color: var(--bg-secondary) !important;
+  }
+
+  .dark .border-eco-pear {
+    border-color: var(--border-primary) !important;
+  }
+
+  .dark .text-eco-cape-cod {
+    color: var(--text-primary) !important;
+  }
+
+  .dark .text-eco-cape-cod\/70 {
+    color: var(--text-secondary) !important;
+  }
+
+  .dark .text-eco-cape-cod\/80 {
+    color: var(--text-primary) !important;
+  }
+
+  .dark .text-eco-cape-cod\/50 {
+    color: var(--text-tertiary) !important;
+  }
+
+  .dark .bg-gray-100 {
+    background-color: var(--bg-tertiary) !important;
+  }
+
+  .dark .text-gray-800 {
+    color: var(--text-primary) !important;
+  }
+
+  .dark .bg-eco-pear\/30 {
+    background-color: var(--bg-tertiary) !important;
+  }
+
+  .dark .bg-eco-mountain-meadow\/20 {
+    background-color: var(--bg-tertiary) !important;
+  }
+
+  .dark .text-eco-mountain-meadow-dark {
+    color: var(--eco-mountain-meadow) !important;
+  }
+
+  .dark .hover\:bg-eco-mountain-meadow\/10:hover {
+    background-color: var(--bg-tertiary) !important;
+  }
+
+  .dark .hover\:bg-eco-emerald\/10:hover {
+    background-color: var(--bg-tertiary) !important;
+  }
+
+  .dark .hover\:bg-eco-pear\/20:hover {
+    background-color: var(--bg-tertiary) !important;
+  }
+
+  .dark .hover\:bg-purple-50:hover {
+    background-color: var(--bg-tertiary) !important;
+  }
+
+  .dark .hover\:bg-red-50:hover {
+    background-color: var(--bg-tertiary) !important;
+  }
+
+  /* Estilos adicionales para elementos específicos de inventario */
+  .dark .border-t {
+    border-color: var(--border-primary) !important;
+  }
+
+  .dark .border-eco-pear {
+    border-color: var(--border-primary) !important;
+  }
+
+  /* Asegurar que los iconos y elementos SVG sean visibles */
+  .dark .lucide {
+    color: var(--text-primary) !important;
+  }
+
+  .dark .lucide.text-eco-mountain-meadow {
+    color: var(--eco-mountain-meadow) !important;
+  }
+
+  .dark .lucide.text-eco-cape-cod\/70 {
+    color: var(--text-secondary) !important;
+  }
+
+  /* Estilos para botones específicos de inventario */
+  .dark .text-eco-mountain-meadow {
+    color: var(--eco-mountain-meadow) !important;
+  }
+
+  .dark .text-eco-emerald {
+    color: var(--eco-emerald) !important;
+  }
+
+  .dark .text-eco-pear-dark {
+    color: var(--eco-pear) !important;
+  }
+
+  .dark .text-purple-600 {
+    color: var(--eco-emerald) !important;
+  }
+
+  .dark .text-red-600 {
+    color: #ef4444 !important;
+  }
+}
+
+/* Reglas adicionales para tarjetas de inventario con mayor especificidad */
+.dark .bg-white.rounded-lg {
+  background-color: var(--bg-secondary) !important;
+}
+
+.dark .bg-white.shadow-sm {
+  background-color: var(--bg-secondary) !important;
+}
+
+.dark .border-eco-pear.rounded-lg {
+  border-color: var(--border-primary) !important;
+}
+
+.dark .text-eco-cape-cod.font-semibold {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-eco-cape-cod.text-sm {
+  color: var(--text-secondary) !important;
+}
+
+.dark .text-eco-cape-cod.text-xs {
+  color: var(--text-tertiary) !important;
+}
+
+.dark .bg-gray-100.inline-flex {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark .bg-gray-100.text-gray-800 {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark .bg-eco-pear\/30.rounded-full {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark .bg-eco-pear\/30.text-eco-cape-cod {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark .bg-eco-mountain-meadow\/20.rounded-lg {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark .border-t.border-eco-pear {
+  border-color: var(--border-primary) !important;
+}
+
+.dark .text-eco-mountain-meadow.font-semibold {
+  color: var(--eco-mountain-meadow) !important;
+}
+
+.dark .text-eco-mountain-meadow.text-sm {
+  color: var(--eco-mountain-meadow) !important;
+}
+
+.dark .text-eco-emerald.text-sm {
+  color: var(--eco-emerald) !important;
+}
+
+.dark .text-eco-pear-dark.text-sm {
+  color: var(--eco-pear) !important;
+}
+
+.dark .text-purple-600.text-sm {
+  color: var(--eco-emerald) !important;
+}
+
+.dark .text-red-600.text-sm {
+  color: #ef4444 !important;
+}
+
+.dark .hover\:bg-eco-mountain-meadow\/10:hover {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark .hover\:bg-eco-emerald\/10:hover {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark .hover\:bg-eco-pear\/20:hover {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark .hover\:bg-purple-50:hover {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark .hover\:bg-red-50:hover {
+  background-color: var(--bg-tertiary) !important;
+}
+
+/* Reglas más específicas para elementos de inventario */
+.dark div.bg-white {
+  background-color: var(--bg-secondary) !important;
+}
+
+.dark div.border-eco-pear {
+  border-color: var(--border-primary) !important;
+}
+
+.dark h3.text-eco-cape-cod {
+  color: var(--text-primary) !important;
+}
+
+.dark p.text-eco-cape-cod {
+  color: var(--text-secondary) !important;
+}
+
+.dark span.text-eco-cape-cod {
+  color: var(--text-primary) !important;
+}
+
+.dark span.bg-gray-100 {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark span.text-gray-800 {
+  color: var(--text-primary) !important;
+}
+
+.dark span.bg-eco-pear\/30 {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark span.text-eco-cape-cod {
+  color: var(--text-primary) !important;
+}
+
+.dark div.bg-eco-mountain-meadow\/20 {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark div.border-t.border-eco-pear {
+  border-color: var(--border-primary) !important;
+}
+
+.dark button.text-eco-mountain-meadow {
+  color: var(--eco-mountain-meadow) !important;
+}
+
+.dark button.text-eco-emerald {
+  color: var(--eco-emerald) !important;
+}
+
+.dark button.text-eco-pear-dark {
+  color: var(--eco-pear) !important;
+}
+
+.dark button.text-purple-600 {
+  color: var(--eco-emerald) !important;
+}
+
+.dark button.text-red-600 {
+  color: #ef4444 !important;
+}
+
+.dark svg.text-eco-mountain-meadow {
+  color: var(--eco-mountain-meadow) !important;
+}
+
+.dark svg.text-eco-cape-cod\/70 {
+  color: var(--text-secondary) !important;
+}
+
+/* Reglas de máxima especificidad para forzar el modo oscuro */
+.dark .bg-white.rounded-lg.shadow-sm.border.border-eco-pear {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-primary) !important;
+}
+
+.dark .bg-white.rounded-lg.shadow-sm.border.border-eco-pear.hover\:shadow-md {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-primary) !important;
+}
+
+.dark .text-eco-cape-cod.font-semibold.line-clamp-2 {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-sm.text-eco-cape-cod\/70 {
+  color: var(--text-secondary) !important;
+}
+
+.dark .inline-flex.items-center.px-2.py-1.rounded-full.text-xs.font-medium.bg-gray-100.text-gray-800 {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark .px-2.py-1.text-xs.font-medium.rounded-full.bg-eco-pear\/30.text-eco-cape-cod {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark .w-12.h-12.rounded-lg.overflow-hidden.bg-eco-mountain-meadow\/20 {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark .pt-4.border-t.border-eco-pear {
+  border-color: var(--border-primary) !important;
+}
+
+.dark .text-xs.text-eco-cape-cod\/50 {
+  color: var(--text-tertiary) !important;
+}
+
+/* Reglas específicas para elementos de búsqueda y filtros */
+.dark .lucide-search.text-gray-400 {
+  color: var(--text-secondary) !important;
+}
+
+.dark input.bg-white\/80 {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark input.border-gray-200 {
+  border-color: var(--border-primary) !important;
+}
+
+.dark input.text-gray-900 {
+  color: var(--text-primary) !important;
+}
+
+.dark input.placeholder-gray-500::placeholder {
+  color: var(--text-tertiary) !important;
+}
+
+.dark .text-gray-700.font-medium {
+  color: var(--text-primary) !important;
+}
+
+.dark .lucide-funnel.text-gray-400 {
+  color: var(--text-secondary) !important;
+}
+
+.dark button.bg-white {
+  background-color: var(--bg-secondary) !important;
+}
+
+.dark button.hover\:bg-gray-50:hover {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark button.border-gray-200 {
+  border-color: var(--border-primary) !important;
+}
+
+.dark button.text-sm.font-medium {
+  color: var(--text-primary) !important;
+}
+
+.dark span.text-xs.opacity-75 {
+  color: var(--text-secondary) !important;
+}
+
+.dark .lucide-arrow-up-down.text-gray-400 {
+  color: var(--text-secondary) !important;
+}
+
+.dark select.bg-white {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark select.border-gray-200 {
+  border-color: var(--border-primary) !important;
+}
+
+.dark select.text-gray-900 {
+  color: var(--text-primary) !important;
+}
+
+.dark option {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Reglas adicionales para elementos de formulario */
+.dark input:focus {
+  border-color: var(--eco-mountain-meadow) !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2) !important;
+}
+
+.dark select:focus {
+  border-color: var(--eco-mountain-meadow) !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2) !important;
+}
+
+/* Reglas específicas para información de stock */
+.dark .flex.justify-between.text-sm span.text-eco-cape-cod\/70 {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-eco-cape-cod\/70.font-medium {
+  color: var(--text-primary) !important;
+}
+
+.dark span.text-eco-cape-cod\/70 {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-sm span.text-eco-cape-cod\/70 {
+  color: var(--text-primary) !important;
+}
+
+/* Reglas adicionales para elementos de stock */
+.dark .space-y-2 span.text-eco-cape-cod\/70 {
+  color: var(--text-primary) !important;
+}
+
+.dark .mb-4 span.text-eco-cape-cod\/70 {
+  color: var(--text-primary) !important;
+}
+
+/* Reglas específicas para descripciones y categorías */
+.dark p.text-eco-cape-cod\/80 {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-sm.text-eco-cape-cod\/80 {
+  color: var(--text-primary) !important;
+}
+
+.dark .mb-4.text-eco-cape-cod\/80 {
+  color: var(--text-primary) !important;
+}
+
+.dark .line-clamp-2.text-eco-cape-cod\/80 {
+  color: var(--text-primary) !important;
+}
+
+.dark p.text-sm.text-eco-cape-cod\/80.mb-4.line-clamp-2 {
+  color: var(--text-primary) !important;
+}
+
+/* Reglas adicionales para cualquier texto con opacidad */
+.dark .text-eco-cape-cod\/80 {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-eco-cape-cod\/60 {
+  color: var(--text-secondary) !important;
+}
+
+.dark .text-eco-cape-cod\/50 {
+  color: var(--text-tertiary) !important;
+}
+
+/* Reglas específicas para botones de paginación */
+.dark button.text-sm {
+  color: var(--text-primary) !important;
+}
+
+.dark button.px-3.py-1.text-sm.rounded {
+  color: var(--text-primary) !important;
+}
+
+.dark button.transition-colors {
+  color: var(--text-primary) !important;
+}
+
+.dark button.disabled\:opacity-50.disabled\:cursor-not-allowed {
+  color: var(--text-primary) !important;
+}
+
+.dark button.bg-slate-700.text-white {
+  color: var(--text-primary) !important;
+}
+
+.dark button.hover\:bg-slate-600 {
+  color: var(--text-primary) !important;
+}
+
+/* Reglas específicas para botones de paginación con clases específicas */
+.dark button[class*="Anterior"] {
+  color: var(--text-primary) !important;
+}
+
+.dark button[class*="Siguiente"] {
+  color: var(--text-primary) !important;
+}
+
+.dark button[class*="anterior"] {
+  color: var(--text-primary) !important;
+}
+
+.dark button[class*="siguiente"] {
+  color: var(--text-primary) !important;
+}
+
+/* Reglas adicionales para cualquier botón de paginación */
+.dark .pagination button {
+  color: var(--text-primary) !important;
+}
+
+.dark .pagination-button {
+  color: var(--text-primary) !important;
+}
+
+/* Reglas específicas para elementos de ubicación */
+.dark .flex.items-center.gap-1.text-xs.text-eco-cape-cod\/70 {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-xs.text-eco-cape-cod\/70 {
+  color: var(--text-primary) !important;
+}
+
+.dark .flex.items-center.gap-1.text-xs {
+  color: var(--text-primary) !important;
+}
+
+.dark .lucide-map-pin {
+  color: var(--text-secondary) !important;
+}
+
+.dark .lucide.lucide-map-pin {
+  color: var(--text-secondary) !important;
+}
+
+.dark svg.lucide-map-pin {
+  color: var(--text-secondary) !important;
+}
+
+.dark span.text-xs {
+  color: var(--text-primary) !important;
+}
+
+/* Reglas adicionales para elementos de ubicación */
+.dark div.flex.items-center.gap-1.text-xs.text-eco-cape-cod\/70 {
+  color: var(--text-primary) !important;
+}
+
+.dark div.flex.items-center.gap-1.text-xs.text-eco-cape-cod\/70 span {
+  color: var(--text-primary) !important;
+}
+
+.dark div.flex.items-center.gap-1.text-xs.text-eco-cape-cod\/70 svg {
+  color: var(--text-secondary) !important;
+}
+
+/* Reglas específicas para encabezados y títulos */
+.dark h2.text-theme-primary {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-theme-primary {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-theme-primary\/70 {
+  color: var(--text-secondary) !important;
+}
+
+.dark p.text-theme-primary\/70 {
+  color: var(--text-secondary) !important;
+}
+
+.dark .text-lg.font-medium.text-theme-primary\/70 {
+  color: var(--text-secondary) !important;
+}
+
+/* Reglas específicas para botones de encabezado */
+.dark button.bg-gradient-to-r.from-purple-600.to-purple-700 {
+  background: linear-gradient(to right, var(--eco-mountain-meadow), var(--eco-emerald)) !important;
+}
+
+.dark button.hover\:from-purple-700.hover\:to-purple-800:hover {
+  background: linear-gradient(to right, var(--eco-mountain-meadow-dark), var(--eco-emerald-dark)) !important;
+}
+
+.dark button.text-white {
+  color: var(--text-primary) !important;
+}
+
+.dark button.font-bold {
+  color: var(--text-primary) !important;
+}
+
+.dark button.px-6.py-3.rounded-2xl {
+  color: var(--text-primary) !important;
+}
+
+.dark button.transition-all.duration-300 {
+  color: var(--text-primary) !important;
+}
+
+.dark button.flex.items-center.gap-3 {
+  color: var(--text-primary) !important;
+}
+
+.dark button.shadow-lg.hover\:shadow-xl {
+  color: var(--text-primary) !important;
+}
+
+.dark button.hover\:scale-105 {
+  color: var(--text-primary) !important;
+}
+
+/* Reglas para iconos dentro de botones */
+.dark button svg.lucide-message-square {
+  color: var(--text-primary) !important;
+}
+
+.dark button .lucide {
+  color: var(--text-primary) !important;
+}
+
+.dark button svg {
+  color: var(--text-primary) !important;
+}
+
+/* Reglas específicas para modales de asignación de permisos */
+.dark .bg-white.rounded-lg.max-w-md {
+  background-color: var(--bg-secondary) !important;
+}
+
+.dark .bg-white.rounded-lg.w-full.p-6 {
+  background-color: var(--bg-secondary) !important;
+}
+
+.dark h3.text-lg.font-semibold.text-gray-900 {
+  color: var(--text-primary) !important;
+}
+
+.dark button.p-2.hover\:bg-gray-100 {
+  background-color: transparent !important;
+}
+
+.dark button.p-2.hover\:bg-gray-100:hover {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark button.rounded-lg.transition-colors {
+  color: var(--text-primary) !important;
+}
+
+.dark .lucide-x {
+  color: var(--text-primary) !important;
+}
+
+.dark svg.lucide-x {
+  color: var(--text-primary) !important;
+}
+
+/* Reglas para labels y textos del modal */
+.dark label.block.text-sm.font-medium.text-gray-700 {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-sm.font-medium.text-gray-700 {
+  color: var(--text-primary) !important;
+}
+
+.dark .max-h-40.overflow-y-auto.border.border-gray-300 {
+  border-color: var(--border-primary) !important;
+}
+
+.dark .border.border-gray-300.rounded-lg {
+  border-color: var(--border-primary) !important;
+}
+
+/* Reglas para botones de residentes */
+.dark button.w-full.text-left.p-3.hover\:bg-gray-50 {
+  background-color: transparent !important;
+}
+
+.dark button.w-full.text-left.p-3.hover\:bg-gray-50:hover {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark button.transition-colors {
+  color: var(--text-primary) !important;
+}
+
+/* Reglas para avatares y textos de residentes */
+.dark .w-8.h-8.bg-gray-200 {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark .bg-gray-200.rounded-full {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark span.text-sm.font-medium.text-gray-600 {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-sm.font-medium.text-gray-600 {
+  color: var(--text-primary) !important;
+}
+
+.dark p.font-medium.text-gray-900 {
+  color: var(--text-primary) !important;
+}
+
+.dark .font-medium.text-gray-900 {
+  color: var(--text-primary) !important;
+}
+
+.dark p.text-sm.text-gray-600 {
+  color: var(--text-secondary) !important;
+}
+
+.dark .text-sm.text-gray-600 {
+  color: var(--text-secondary) !important;
+}
+
+/* Reglas para botones del modal */
+.dark button.flex-1.px-4.py-2.bg-gray-200 {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark button.text-gray-800 {
+  color: var(--text-primary) !important;
+}
+
+.dark button.hover\:bg-gray-300:hover {
+  background-color: var(--border-primary) !important;
+}
+
+.dark button.bg-blue-600 {
+  background-color: var(--eco-mountain-meadow) !important;
+}
+
+.dark button.hover\:bg-blue-700:hover {
+  background-color: var(--eco-mountain-meadow-dark) !important;
+}
+
+.dark button.text-white {
+  color: var(--text-primary) !important;
+}
+
+.dark button.disabled\:opacity-50.disabled\:cursor-not-allowed {
+  color: var(--text-primary) !important;
+}
+
+/* Reglas específicas para modal de gestión de permisos */
+.dark .bg-white.rounded-lg.border.border-gray-200 {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-primary) !important;
+}
+
+.dark .bg-white.rounded-lg.border.border-gray-200.p-6 {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-primary) !important;
+}
+
+.dark h3.text-lg.font-semibold.text-gray-900 {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-lg.font-semibold.text-gray-900 {
+  color: var(--text-primary) !important;
+}
+
+.dark p.text-sm.text-gray-600 {
+  color: var(--text-secondary) !important;
+}
+
+.dark .text-sm.text-gray-600 {
+  color: var(--text-secondary) !important;
+}
+
+.dark .text-sm.text-gray-600.mt-1 {
+  color: var(--text-secondary) !important;
+}
+
+/* Reglas para iconos de gestión de permisos */
+.dark .lucide-shield.text-blue-600 {
+  color: var(--eco-mountain-meadow) !important;
+}
+
+.dark svg.lucide-shield.text-blue-600 {
+  color: var(--eco-mountain-meadow) !important;
+}
+
+.dark .lucide-shield.w-5.h-5.text-blue-600 {
+  color: var(--eco-mountain-meadow) !important;
+}
+
+.dark .lucide-shield.w-4.h-4.text-blue-600 {
+  color: var(--eco-mountain-meadow) !important;
+}
+
+/* Reglas para botón de asignar permiso */
+.dark button.bg-blue-600.text-white {
+  background-color: var(--eco-mountain-meadow) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark button.hover\:bg-blue-700:hover {
+  background-color: var(--eco-mountain-meadow-dark) !important;
+}
+
+.dark button.px-4.py-2.rounded-lg {
+  color: var(--text-primary) !important;
+}
+
+.dark button.flex.items-center.gap-2 {
+  color: var(--text-primary) !important;
+}
+
+.dark .lucide-user-plus {
+  color: var(--text-primary) !important;
+}
+
+.dark svg.lucide-user-plus {
+  color: var(--text-primary) !important;
+}
+
+/* Reglas para lista de permisos */
+.dark .space-y-3 {
+  color: var(--text-primary) !important;
+}
+
+.dark .flex.items-center.justify-between.p-3.bg-gray-50 {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark .bg-gray-50.rounded-lg {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark .p-3.bg-gray-50.rounded-lg {
+  background-color: var(--bg-tertiary) !important;
+}
+
+/* Reglas para avatares de permisos */
+.dark .w-8.h-8.bg-blue-100 {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark .bg-blue-100.rounded-full {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark .flex.items-center.justify-center {
+  color: var(--text-primary) !important;
+}
+
+/* Reglas para textos de usuarios con permisos */
+.dark p.font-medium.text-gray-900 {
+  color: var(--text-primary) !important;
+}
+
+.dark .font-medium.text-gray-900 {
+  color: var(--text-primary) !important;
+}
+
+.dark p.text-sm.text-gray-600 {
+  color: var(--text-secondary) !important;
+}
+
+.dark .text-sm.text-gray-600 {
+  color: var(--text-secondary) !important;
+}
+
+/* Reglas para botón de revocar permiso */
+.dark button.p-2.text-red-500 {
+  color: #ef4444 !important;
+}
+
+.dark button.hover\:bg-red-50:hover {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark button.rounded-lg.transition-colors {
+  color: #ef4444 !important;
+}
+
+.dark .lucide-user-minus {
+  color: #ef4444 !important;
+}
+
+.dark svg.lucide-user-minus {
+  color: #ef4444 !important;
+}
+
+/* Reglas específicas para botones de paginación numerada */
+.dark button.w-10.h-10.rounded-lg {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark button.font-medium.transition-colors {
+  color: var(--text-primary) !important;
+}
+
+.dark button.bg-blue-600.text-white {
+  background-color: var(--eco-mountain-meadow) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark button.w-10.h-10.rounded-lg.font-medium.transition-colors.bg-blue-600.text-white {
+  background-color: var(--eco-mountain-meadow) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Reglas adicionales para botones de paginación */
+.dark button[class*="w-10"][class*="h-10"] {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark button[class*="rounded-lg"][class*="font-medium"] {
+  color: var(--text-primary) !important;
+}
+
+.dark button[class*="transition-colors"][class*="bg-blue-600"] {
+  background-color: var(--eco-mountain-meadow) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Utilidades para modo oscuro */
+.bg-theme-primary {
+  background-color: var(--bg-primary);
+}
+
+.bg-theme-secondary {
+  background-color: var(--bg-secondary);
+}
+
+.bg-theme-tertiary {
+  background-color: var(--bg-tertiary);
+}
+
+.text-theme-primary {
+  color: var(--text-primary);
+}
+
+.text-theme-secondary {
+  color: var(--text-secondary);
+}
+
+.text-theme-tertiary {
+  color: var(--text-tertiary);
+}
+
+.border-theme-primary {
+  border-color: var(--border-primary);
+}
+
+.border-theme-secondary {
+  border-color: var(--border-secondary);
+}
+/* Reglas para elementos de formulario en modo oscuro */
+.dark input[type="number"],
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark select,
+.dark textarea {
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark input[type="number"]:focus,
+.dark input[type="text"]:focus,
+.dark input[type="email"]:focus,
+.dark input[type="password"]:focus,
+.dark select:focus,
+.dark textarea:focus {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--eco-mountain-meadow) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark input[type="number"]::placeholder,
+.dark input[type="text"]::placeholder,
+.dark input[type="email"]::placeholder,
+.dark input[type="password"]::placeholder,
+.dark textarea::placeholder {
+  color: var(--text-tertiary) !important;
+}
+
+/* Reglas específicas para elementos con colores amarillos */
+.dark input.bg-yellow-50,
+.dark select.bg-yellow-50 {
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark input.border-yellow-300,
+.dark select.border-yellow-300 {
+  border-color: var(--border-secondary) !important;
+}
+
+.dark input:focus.border-yellow-300,
+.dark select:focus.border-yellow-300 {
+  border-color: var(--eco-mountain-meadow) !important;
+}
+
+.dark input:focus.ring-yellow-500,
+.dark select:focus.ring-yellow-500 {
+  --tw-ring-color: var(--eco-mountain-meadow) !important;
+}
+
+/* Labels en modo oscuro */
+.dark label.text-yellow-700 {
+  color: var(--text-primary) !important;
+}
+
+.dark label.text-sm.font-medium {
+  color: var(--text-primary) !important;
+}
+
+/* Opciones de select en modo oscuro */
+.dark select option {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Reglas adicionales para formularios específicos */
+.dark .space-y-4 input,
+.dark .space-y-4 select {
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark .space-y-4 input:focus,
+.dark .space-y-4 select:focus {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--eco-mountain-meadow) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark .space-y-4 label {
+  color: var(--text-primary) !important;
+}
+
+/* Reglas específicas para elementos con clases exactas del HTML */
+.dark input.bg-yellow-50.border-yellow-300 {
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark select.bg-yellow-50.border-yellow-300 {
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark input.flex-1.p-3.border.border-yellow-300 {
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark select.p-3.border.border-yellow-300 {
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark select.w-full.p-3.border.border-yellow-300 {
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Reglas para elementos con clases de gris que también necesitan adaptación */
+.dark select.bg-gray-50.border-gray-300 {
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark select.w-full.p-3.border.border-gray-300 {
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Reglas para labels con clases específicas */
+.dark label.text-gray-700 {
+  color: var(--text-primary) !important;
+}
+
+.dark label.block.text-sm.font-medium.text-gray-700 {
+  color: var(--text-primary) !important;
+}
+
+/* Reglas para elementos con clases específicas de espacio */
+.dark .space-y-6 input,
+.dark .space-y-6 select,
+.dark .space-y-6 textarea {
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark .space-y-6 input:focus,
+.dark .space-y-6 select:focus,
+.dark .space-y-6 textarea:focus {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--eco-mountain-meadow) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark .space-y-6 label {
+  color: var(--text-primary) !important;
+}
+

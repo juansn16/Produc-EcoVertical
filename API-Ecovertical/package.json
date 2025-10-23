@@ -1,0 +1,42 @@
+{
+  "name": "api-ecovertical",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "start:prod": "set NODE_ENV=production && node src/server.js",
+    "dev": "nodemon src/server.js",
+    "dev:prod": "nodemon --env-file=.env.local.production src/server.js",
+    "build": "echo 'No build step required for Node.js'",
+    "render-postbuild": "echo 'Post-build completed'"
+  },
+  "description": "Estructura base para un proyecto Node.js/Express.",
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/generative-ai": "^0.17.2",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "express-rate-limit": "^7.4.0",
+    "express-validator": "^7.2.1",
+    "firebase": "^12.3.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "mysql2": "^3.14.3",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^7.0.5",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "uuid": "^11.1.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "node-fetch": "^3.3.2",
+    "nodemon": "^3.1.10"
+  }
+}

@@ -1,0 +1,123 @@
+{
+  "guia": {
+    "titulo": "Guía de Cultivo Vertical para Verduras y Hortalizas",
+    "categoria": "Verduras y Hortalizas de Hoja en Huertos Verticales",
+    "cultivos": [
+      {
+        "id": "cebollin",
+        "nombre_comun": "Cebollín / Cebolla de Verdeo",
+        "nombre_cientifico": "Allium fistulosum",
+        "titulo": "Cultivo en Macetas",
+        "sistema_cultivo": {
+          "contenedores": [
+            "Macetas de 20–30 cm de profundidad con buen drenaje (evitar plásticos negros)",
+            "Sistema de cultivo en capas: torres verticales con compartimentos separados por 15 cm"
+          ],
+          "sustrato": {
+            "composicion": "Fibra de coco (40%), compost (30%), vermiculita (20%), arena de río (10%)",
+            "ph": "6.0–7.0",
+            "notas": "Sensible a suelos ácidos"
+          },
+          "metodos_siembra": [
+            {
+              "tipo": "Directa",
+              "instrucciones": "Semillas a 1 cm de profundidad, en grupos de 5–6 semillas cada 10 cm"
+            },
+            {
+              "tipo": "Trasplante",
+              "instrucciones": "Usar matas de raíz blanca (más rápido que semillas)"
+            }
+          ]
+        },
+        "manejo": {
+          "nutricion": [
+            "Abono rico en nitrógeno (harina de sangre o emulsión de pescado) cada 3 semanas",
+            "Té de compost para estimular crecimiento radicular"
+          ],
+          "cosecha": "Cortar hojas exteriores con tijeras esterilizadas (nunca arrancar de raíz para permitir rebrote)"
+        },
+        "condiciones_climaticas": {
+          "iluminacion": "6–8 horas de sol directo (tolera sombra ligera pero crece más lento)",
+          "riego": {
+            "sistema": "Goteo con sensor de humedad",
+            "instrucciones": "Sustrato debe estar húmedo pero no encharcado. Evitar mojar las hojas"
+          }
+        }
+      },
+      {
+        "id": "perejil",
+        "nombre_comun": "Perejil",
+        "nombre_cientifico": "Petroselinum crispum",
+        "titulo": "Cultivo en Sombra Parcial",
+        "sistema_cultivo": {
+          "contenedores": [
+            "Macetas de 15–20 cm de profundidad",
+            "Bolsas geotextiles en huertos verticales",
+            "Sistemas hidropónicos NFT (Nutrient Film Technique)"
+          ],
+          "sustrato": {
+            "composicion": "Turba (50%), humus de lombriz (30%), perlita (20%)",
+            "ph": "5.5–6.5"
+          }
+        },
+        "manejo": {
+          "poda": {
+            "rotacion_cosecha": "Cortar hojas exteriores para estimular crecimiento central"
+          },
+          "nutricion": "Abono foliar con algas marinas cada 2 semanas para hojas más vigorosas",
+          "control_plagas": "Infusión de ajo para prevenir pulgones"
+        },
+        "condiciones_climaticas": {
+          "iluminacion": "4–6 horas de sol filtrado o luz artificial LED (evitar sol intenso del mediodía)",
+          "riego": "Por capilaridad (bandejas inferiores) para mantener humedad constante"
+        }
+      },
+      {
+        "id": "cilantro",
+        "nombre_comun": "Cilantro",
+        "nombre_cientifico": "Coriandrum sativum",
+        "titulo": "Manejo en Condiciones de Luz Controlada",
+        "sistema_cultivo": {
+          "sustrato_siembra": {
+            "macetas": "25 cm de profundidad (raíz pivotante necesita espacio)",
+            "siembra": "Escalonada (cada 2 semanas para cosecha continua)"
+          },
+          "variedades_recomendadas": ["Santo", "Calypso"]
+        },
+        "manejo": {
+          "floracion": {
+            "razon": "Ciclo más largo antes de florecer"
+          },
+          "nutricion": "Bajo nitrógeno (evitar exceso, que acelera floración)"
+        },
+        "condiciones_climaticas": {
+          "temperatura": "15–25°C (evitar >30°C para prevenir espigado)",
+          "riego": "Sistema de nebulización en climas cálidos para reducir estrés térmico"
+        }
+      },
+      {
+        "id": "hierbabuena-menta",
+        "nombre_comun": "Hierbabuena / Menta",
+        "nombre_cientifico": "Mentha spp.",
+        "titulo": "Cultivo en Macetas Colgantes",
+        "sistema_cultivo": {
+          "contenedores": [
+            "Macetas con fondo cerrado (evita que rizomas invadan otras plantas)",
+            "Sistema hidropónico en canaletas verticales (solución nutritiva EC 1.8–2.2)"
+          ]
+        },
+        "manejo": {
+          "poda": "Cortar tallos a 5 cm del suelo cada 3 semanas para estimular brotes nuevos",
+          "control_plagas": {
+            "plagas_comunes": ["Ácaros", "Roya"],
+            "tratamiento": "Aplicar azufre en polvo preventivo"
+          }
+        },
+        "condiciones_climaticas": {}
+      }
+    ],
+    "tecnologias": {},
+    "actualizacion": "Noviembre 2025",
+    "version": "1.0"
+  }
+}

@@ -1,0 +1,151 @@
+{
+  "guia": {
+    "titulo": "Guía de Cultivo Vertical para Frutas",
+    "categoria": "Frutas en Huertos Verticales",
+    "cultivos": [
+      {
+        "id": "fresas",
+        "nombre_comun": "Fresas",
+        "nombre_cientifico": "Fragaria × ananassa",
+        "titulo": "Cultivo en Bolsas o Macetas Colgantes",
+        "sistema_cultivo": {
+          "contenedores": [
+            "Bolsas geotextiles (30x20 cm, mínimo 5 L de capacidad)",
+            "Macetas colgantes con sistema de autorriego (evitar plásticos delgados que retengan calor)"
+          ],
+          "sustrato": {
+            "composicion": "Fibra de coco (40%), compost (30%), perlita (20%), humus de lombriz (10%)",
+            "ph": "5.5–6.5"
+          },
+          "metodo_siembra": "Usar plántulas de corona desarrollada. Plantar a 15 cm de profundidad, asegurando que la corona quede al nivel del sustrato"
+        },
+        "manejo": {
+          "nutricion": [
+            {
+              "fase": "vegetativa",
+              "duracion": "primeras 6 semanas",
+              "tipo": "Abono rico en nitrógeno (5-1-1)"
+            },
+            {
+              "fase": "floración y fructificación",
+              "tipo": "Fertilizante alto en potasio (3-4-5)",
+              "frecuencia": "cada 10 días"
+            }
+          ],
+          "poda": [
+            "Eliminar estolones para concentrar energía en la producción de frutos",
+            "Retirar hojas amarillas o enfermas"
+          ]
+        },
+        "condiciones_climaticas": {
+          "iluminacion": {
+            "exterior": "6–8 horas de luz solar directa",
+            "interior": "Luces LED full spectrum 12–14 h/día"
+          },
+          "riego": "Sistema por goteo con temporizador (2–3 veces/día en verano, 1 vez en invierno). Evitar mojar hojas y frutos"
+        }
+      },
+      {
+        "id": "tomate-cherry",
+        "nombre_comun": "Tomate Cherry",
+        "nombre_cientifico": "Solanum lycopersicum var. cerasiforme",
+        "titulo": "Tutoreo en Vertical",
+        "sistema_cultivo": {
+          "estructura_soporte": [
+            "Espaldera vertical con malla HORTOMALLAS",
+            "Tutores de bambú (2 m de altura) en macetas de 20–30 L"
+          ],
+          "sustrato": {
+            "composicion": "Turba (40%), compost (30%), vermiculita (20%), biochar (10%)",
+            "ph": "6.0–6.8"
+          }
+        },
+        "manejo": {
+          "poda": {
+            "metodo": "Un Tallo Principal",
+            "instrucciones": "Eliminar todos los chupones (brotes axilares) y despuntar la planta al alcanzar 1.5 m"
+          },
+          "polinizacion": "Usar cepillo de cerda suave o vibrador eléctrico en ausencia de abejas",
+          "control_plagas": {
+            "preventivo": "Bacillus thuringiensis (contra gusanos cortadores)",
+            "correctivo": "Jabón potásico + aceite de neem (áfidos y mosca blanca)"
+          }
+        },
+        "condiciones_climaticas": {}
+      },
+      {
+        "id": "pepino",
+        "nombre_comun": "Pepino",
+        "nombre_cientifico": "Cucumis sativus",
+        "titulo": "Entutorado en Celosías",
+        "sistema_cultivo": {
+          "estructura": {
+            "tipo": "Celosía de acero galvanizado",
+            "angulo": "70°",
+            "notas": "Resistente al peso de frutos"
+          },
+          "hidroponia": {
+            "sistema": "NFT (Nutrient Film Technique)",
+            "solucion_nutritiva": "EC 2.0–2.5 mS/cm"
+          }
+        },
+        "manejo": {
+          "cosecha": "Recolectar cada 2–3 días para estimular nueva floración"
+        },
+        "condiciones_climaticas": {
+          "riego": "Riego por subirrigación (evita humedad en hojas, previniendo mildiu)"
+        },
+        "variedades_recomendadas": ["Spacemaster", "Bush Champion"]
+      },
+      {
+        "id": "maracuya",
+        "nombre_comun": "Maracuyá",
+        "nombre_cientifico": "Passiflora edulis",
+        "titulo": "Sistema de Pérgola Vertical",
+        "sistema_cultivo": {
+          "estructura_soporte": {
+            "materiales": [
+              "Tubo de acero (mínimo 5 cm de diámetro)",
+              "Malla de soporte de acero inoxidable"
+            ]
+          }
+        },
+        "manejo": {
+          "poda": {
+            "primer_ano": "Guiar un tallo principal hasta 2 m de altura antes de permitir ramificación",
+            "renovacion": "Cortar el 30% de ramas viejas post-cosecha"
+          },
+          "nutricion": {
+            "fertilizacion_foliar": "Quelato de calcio + boro en floración (reduce aborto floral)"
+          }
+        },
+        "condiciones_climaticas": {
+          "riego": {
+            "sistema": "Goteo automatizado con sensor de humedad",
+            "volumen": "15–20 L/día en época seca"
+          }
+        }
+      },
+      {
+        "id": "guayaba-enana",
+        "nombre_comun": "Guayaba Enana",
+        "nombre_cientifico": "Psidium guajava 'enana'",
+        "titulo": "Manejo en Macetón",
+        "sistema_cultivo": {
+          "sustrato": {
+            "composicion": "Corteza de pino compostada (40%), arena gruesa (30%), estiércol de ovino (20%), vermiculita (10%)",
+            "ph": "5.0–7.0"
+          }
+        },
+        "manejo": {
+          "injerto": "Usar patrones de Psidium cattleianum para mayor resistencia a nematodos",
+          "riego": "Aplicar polímeros retenedores de agua en sustrato para reducir frecuencia de riego"
+        },
+        "condiciones_climaticas": {}
+      }
+    ],
+    "tecnologias": {},
+    "actualizacion": "Noviembre 2025",
+    "version": "1.0"
+  }
+}

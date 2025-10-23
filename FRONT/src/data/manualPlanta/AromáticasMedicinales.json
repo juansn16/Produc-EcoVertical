@@ -1,0 +1,166 @@
+{
+  "guia": {
+    "titulo": "Guía Avanzada para el Cultivo de Hierbas Aromáticas y Medicinales en Huertos Verticales",
+    "categoria": "Hierbas Aromáticas y Medicinales",
+    "cultivos": [
+      {
+        "id": "albahaca",
+        "nombre_comun": "Albahaca",
+        "nombre_cientifico": "Ocimum basilicum",
+        "titulo": "La Reina de las Aromáticas",
+        "sistema_cultivo": {
+          "contenedores": [
+            "Macetas de 15-20 cm de profundidad con sistema de autorriego",
+            "Cultivo hidropónico (sistema NFT con EC 1.8-2.2)"
+          ],
+          "sustrato": {
+            "composicion": "60% fibra de coco + 30% vermicompost + 10% biochar",
+            "ph": "6.0-7.5",
+            "notas": "Sensibilidad a suelos ácidos"
+          }
+        },
+        "manejo": {
+          "poda": [
+            "Cortar ápice sobre 5° nudo para estimular ramificación",
+            "Eliminar botones florales para prolongar vida vegetativa"
+          ]
+        },
+        "condiciones_climaticas": {
+          "iluminacion": {
+            "duracion": "14-16 horas diarias",
+            "tipo_luz": "LED full spectrum 400-700 nm",
+            "intensidad": "20,000-30,000 lux"
+          }
+        }
+      },
+      {
+        "id": "oregano",
+        "nombre_comun": "Orégano",
+        "nombre_cientifico": "Origanum vulgare",
+        "titulo": "El Resistente Mediterráneo",
+        "sistema_cultivo": {},
+        "manejo": {
+          "nutricion": [
+            "Fertilización foliar con quelato de silicio para fortalecer tejidos",
+            "Aporte de potasio en floración para mejorar aroma"
+          ]
+        },
+        "condiciones_climaticas": {
+          "riego": {
+            "estrategia": "Ciclos de sequía controlada para aumentar concentración de aceites esenciales",
+            "sistema": "Goteo con 2-3 riegos semanales en verano"
+          }
+        }
+      },
+      {
+        "id": "tomillo",
+        "nombre_comun": "Tomillo",
+        "nombre_cientifico": "Thymus vulgaris",
+        "titulo": "El Guerrero de la Sequía",
+        "sistema_cultivo": {
+          "sustrato": {
+            "composicion": "50% arena gruesa + 30% piedra pómez + 20% compost",
+            "capa_inferior": "5 cm de grava volcánica"
+          }
+        },
+        "manejo": {
+          "riego": [
+            "Programar riego por pulsos (15' cada 3 días en verano)",
+            "Uso de hidrogel agrícola en trasplante"
+          ]
+        },
+        "condiciones_climaticas": {}
+      },
+      {
+        "id": "romero",
+        "nombre_comun": "Romero",
+        "nombre_cientifico": "Rosmarinus officinalis",
+        "titulo": "El Arquitecto Vertical",
+        "sistema_cultivo": {
+          "estructuras": [
+            "Columnas vivas con anillos de cultivo",
+            "Paredes verdes con sistema de drenaje forzado"
+          ]
+        },
+        "manejo": {
+          "poda": [
+            "Formación en espaldera para paredes",
+            "Técnica niwaki para control de crecimiento"
+          ]
+        },
+        "condiciones_climaticas": {}
+      },
+      {
+        "id": "salvia",
+        "nombre_comun": "Salvia",
+        "nombre_cientifico": "Salvia officinalis",
+        "titulo": "La Planta Sabia",
+        "sistema_cultivo": {},
+        "manejo": {
+          "mejoramiento_activos": [
+            "Estrés lumínico controlado (UV-B 280-315 nm)",
+            "Aplicación de ácido salicílico 0.01% en riego"
+          ],
+          "control_plagas": {
+            "preventivo": "Bacillus subtilis cepa QST713",
+            "correctivo": "Trampas cromáticas amarillas para trips"
+          }
+        },
+        "condiciones_climaticas": {}
+      },
+      {
+        "id": "stevia",
+        "nombre_comun": "Stevia",
+        "nombre_cientifico": "Stevia rebaudiana",
+        "titulo": "El Oro Dulce",
+        "sistema_cultivo": {},
+        "manejo": {
+          "aumento_glucosidos": [
+            "Restricción de nitrógeno en fase final",
+            "Exposición a luz azul (450 nm) última semana"
+          ],
+          "procesado_cosecha": [
+            "Secado a 40°C con flujo de aire forzado",
+            "Molido criogénico para preservar propiedades"
+          ]
+        },
+        "condiciones_climaticas": {}
+      },
+      {
+        "id": "lavanda",
+        "nombre_comun": "Lavanda",
+        "nombre_cientifico": "Lavandula spp.",
+        "titulo": "La Esencia Púrpura",
+        "sistema_cultivo": {
+          "diseno_drenaje": {
+            "perfil_sustrato": "Capas de grava-arena-sustrato",
+            "inclinacion_macetas": "5-10%"
+          }
+        },
+        "manejo": {
+          "cosecha": [
+            "Corte en mañana seca con 50% de flores abiertas",
+            "Destilación al vapor en primeras 24 horas"
+          ]
+        },
+        "condiciones_climaticas": {}
+      }
+    ],
+    "tecnologias": {
+      "monitoreo": [
+        "Humedad de sustrato (capacitivos)",
+        "Estrés lumínico (espectrorradiómetros)"
+      ],
+      "sistemas": [
+        "Dosificación por EC/pH",
+        "Inyección de CO2 en raíces"
+      ],
+      "control_ambiental": [
+        "Paneles LED programables",
+        "Complemento con UV controlado"
+      ]
+    },
+    "actualizacion": "Noviembre 2025",
+    "version": "2.0"
+  }
+}

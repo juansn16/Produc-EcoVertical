@@ -1,0 +1,187 @@
+{
+  "guia": {
+    "titulo": "Guía Maestra para Plantas Ornamentales en Huertos Verticales: Técnicas Profesionales",
+    "categoria": "Plantas Ornamentales",
+    "cultivos": [
+      {
+        "id": "petunias",
+        "nombre_comun": "Petunias",
+        "nombre_cientifico": "Petunia spp.",
+        "titulo": "El Color Vertical",
+        "sistema_cultivo": {
+          "sustrato": {
+            "tipo": "Aeropónico",
+            "composicion": "70% perlita + 30% fibra de coco (sin suelo)",
+            "ph": "5.5-6.0 con buffer de calcio"
+          },
+          "soporte": {
+            "estructura": "Paneles verticales con bolsillos de geotextil Smart Pot",
+            "distancia_plantas": "20-25 cm"
+          }
+        },
+        "manejo": {
+          "poda": {
+            "deadheading": "Robótico cada 72 horas",
+            "renovacion": "Poda al 30% cada 6 semanas"
+          },
+          "nutricion": {
+            "fertirriego": "NPK 15-5-30 + micronutrientes quelatados",
+            "bioestimulantes": "Aplicación nocturna de giberelinas GA3 (50 ppm)"
+          }
+        },
+        "condiciones_climaticas": {}
+      },
+      {
+        "id": "begonias",
+        "nombre_comun": "Begonias",
+        "nombre_cientifico": "Begonia spp.",
+        "titulo": "Arte en la Sombra",
+        "sistema_cultivo": {
+          "sustrato": {
+            "composicion": "Corteza de pino compostada (80%) + carbón activado (20%)",
+            "ce": "1.2-1.5 mS/cm"
+          },
+          "soporte": {}
+        },
+        "manejo": {
+          "control_ambiental": {
+            "sombreado": "Malla Aluminet 50%",
+            "humedad": "Nebulización ultrasónica cada 3 horas"
+          }
+        },
+        "propagacion": {
+          "esquejado": {
+            "tecnica": "Hormonas en gel (IBA 3000 ppm)",
+            "ambiente": "Cámara de enraizado con fotoperiodo 18/6"
+          },
+          "sanidad": {
+            "prevencion": "Bacillus amyloliquefaciens",
+            "manejo": "Aireación radical forzada"
+          }
+        },
+        "condiciones_climaticas": {}
+      },
+      {
+        "id": "suculentas",
+        "nombre_comun": "Suculentas (Crassula, Echeveria, Sedum)",
+        "titulo": "Esculturas Vivientes",
+        "sistema_cultivo": {
+          "sustrato": {
+            "mineral": "60% piedra pómez + 20% zeolita + 20% biochar",
+            "drenaje": "Capa de grava de cuarzo (5 cm)"
+          },
+          "riego": {
+            "monitoreo": "Sensores de turgencia foliar",
+            "programa": "Pulsos cada 21 días en verano"
+          }
+        },
+        "manejo": {
+          "diseno_vertical": {
+            "estructuras": "Paneles de espuma fenólica tallada con inclinación 15°",
+            "tecnicas": [
+              "Estrés lumínico controlado con LED UV-A",
+              "Regulación de antocianinas mediante temperatura"
+            ]
+          }
+        },
+        "condiciones_climaticas": {}
+      },
+      {
+        "id": "helechos",
+        "nombre_comun": "Helechos",
+        "nombre_cientifico": "Nephrolepis spp.",
+        "titulo": "Cascadas Verdes",
+        "sistema_cultivo": {
+          "hidroponia": {
+            "sistema": "Flujo laminar en paneles de poliuretano",
+            "nutricion": "Solución con 50% menos nitrógeno"
+          }
+        },
+        "manejo": {
+          "control_climatico": {
+            "humedad": {
+              "sistema": "Humidificador ultrasónico con timer circadiano",
+              "monitoreo": "Sensores de punto de rocío"
+            }
+          }
+        },
+        "propagacion": {
+          "esporulacion": {
+            "ambiente": "Cámaras con luz azul 450 nm",
+            "sustrato": "Agar-agar con carbón activado"
+          }
+        },
+        "condiciones_climaticas": {}
+      },
+      {
+        "id": "clavelinas",
+        "nombre_comun": "Clavelinas",
+        "nombre_cientifico": "Tagetes spp.",
+        "titulo": "Defensores Naturales",
+        "manejo": {
+          "integrado": {
+            "diseno": {
+              "patron": "Plantación en zig-zag",
+              "espaciado": "45 cm intercalar"
+            },
+            "extractos": {
+              "metodologia": "Arrastre al vapor para tiofenos",
+              "aplicacion": "Pulverización foliar con extracto concentrado"
+            }
+          }
+        },
+        "condiciones_climaticas": {}
+      },
+      {
+        "id": "tradescantia",
+        "nombre_comun": "Tradescantia (Amor de hombre)",
+        "titulo": "Dinámica Vertical",
+        "sistema_cultivo": {
+          "guiado": {
+            "estructuras": [
+              "Mallas de alambre memory shape",
+              "Sistemas de pesos regulables"
+            ]
+          }
+        },
+        "manejo": {
+          "poda": "Técnica 'Poda en V' para cobertura rápida",
+          "rotacion": "Ejes cada 90 días"
+        },
+        "condiciones_climaticas": {}
+      },
+      {
+        "id": "bromelias",
+        "nombre_comun": "Bromelias",
+        "nombre_cientifico": "Bromeliaceae",
+        "titulo": "Arquitectura Tropical",
+        "sistema_cultivo": {
+          "cultivo_epifito": {
+            "soportes": "Estructuras de fibra de coco prensada (30° inclinación)",
+            "riego": {
+              "sistema": "Microaspersión dirigida a copa",
+              "agua": "Lluvia acidificada (pH 5.5)"
+            }
+          }
+        },
+        "condiciones_climaticas": {}
+      }
+    ],
+    "tecnologias": {
+      "monitoreo": [
+        "Sensores de turgencia foliar",
+        "Sensores de punto de rocío"
+      ],
+      "sistemas": [
+        "Nebulización ultrasónica",
+        "Riego por pulsos automatizado"
+      ],
+      "control_ambiental": [
+        "LED UV-A programables",
+        "Luz azul 450 nm para propagación"
+      ]
+    },
+    "actualizacion": "Noviembre 2025",
+    "version": "3.0"
+  }
+}

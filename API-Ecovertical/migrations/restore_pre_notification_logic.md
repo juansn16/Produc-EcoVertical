@@ -1,0 +1,27 @@
+-- Después de ejecutar add_pre_notification_column.sql, 
+-- descomenta estas líneas en irrigationAlertService.js:
+
+-- En la función checkPreAlerts, línea ~322:
+-- Cambiar de:
+-- WHERE ar.fecha_alerta = ? 
+-- AND ar.hora_alerta = ?
+-- AND ar.estado = 'activa'
+-- 
+-- A:
+-- WHERE ar.fecha_alerta = ? 
+-- AND ar.hora_alerta = ?
+-- AND ar.estado = 'activa'
+-- AND ar.pre_notificacion_enviada = 0
+
+-- En la función checkPreAlerts, línea ~334:
+-- Cambiar de:
+-- // await db.execute(
+-- //   'UPDATE alertas_riego SET pre_notificacion_enviada = 1 WHERE id = ?',
+-- //   [alert.id]
+-- // );
+-- 
+-- A:
+-- await db.execute(
+--   'UPDATE alertas_riego SET pre_notificacion_enviada = 1 WHERE id = ?',
+--   [alert.id]
+-- );
