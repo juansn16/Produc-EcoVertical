@@ -46,19 +46,20 @@ class NotificationScheduler {
       // Buscar alertas que necesitan notificación (10 minutos antes)
       const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
       
-      const [alerts] = await db.execute(
+      const result = await db.query(
         `SELECT 
           apr.*,
           h.nombre as huerto_nombre,
           h.tipo as huerto_tipo
         FROM alertas_programadas_riego apr
         INNER JOIN huertos h ON apr.huerto_id = h.id
-        WHERE apr.esta_activa = 1 
-          AND apr.notificacion_enviada = 0
-          AND apr.is_deleted = 0
-          AND CONCAT(apr.fecha_programada, ' ', apr.hora_programada) BETWEEN ? AND ?`,
+        WHERE apr.esta_activa = true 
+          AND apr.notificacion_enviada = false
+          AND apr.is_deleted = false
+          AND CONCAT(apr.fecha_programada, ' ', apr.hora_programada) BETWEEN $1 AND $2`,
         [now, tenMinutesFromNow]
       );
+      const alerts = result.rows;
 
       console.log(`🔍 Verificando notificaciones: ${alerts.length} alertas encontradas`);
 
@@ -67,8 +68,8 @@ class NotificationScheduler {
           await this.sendWateringNotification(alert);
           
           // Marcar como notificada
-          await db.execute(
-            'UPDATE alertas_programadas_riego SET notificacion_enviada = 1, fecha_notificacion_enviada = NOW() WHERE id = ?',
+          await db.query(
+            'UPDATE alertas_programadas_riego SET notificacion_enviada = true, fecha_notificacion_enviada = NOW() WHERE id = $1',
             [alert.id]
           );
           
@@ -90,13 +91,14 @@ class NotificationScheduler {
   // Enviar notificación de riego
   async sendWateringNotification(alert) {
     // Obtener todos los usuarios del huerto
-    const [usuarios] = await db.execute(
+    const result = await db.query(
       `SELECT DISTINCT u.id, u.nombre, u.email, u.telefono 
        FROM usuarios u 
        INNER JOIN usuario_huerto uh ON u.id = uh.usuario_id 
-       WHERE uh.huerto_id = ? AND u.is_deleted = 0 AND uh.is_deleted = 0`,
+       WHERE uh.huerto_id = $1 AND u.is_deleted = 0 AND uh.is_deleted = 0`,
       [alert.huerto_id]
     );
+    const usuarios = result.rows;
 
     const fechaHora = new Date(`${alert.fecha_programada} ${alert.hora_programada}`);
     const fechaFormateada = fechaHora.toLocaleDateString('es-ES', {
@@ -139,15 +141,16 @@ class NotificationScheduler {
   async checkOverdueAlerts() {
     const now = new Date();
     
-    const [overdueAlerts] = await db.execute(
+    const result = await db.query(
       `SELECT id, titulo, huerto_nombre 
        FROM alertas_programadas_riego apr
        INNER JOIN huertos h ON apr.huerto_id = h.id
-       WHERE apr.esta_activa = 1 
-         AND apr.is_deleted = 0
-         AND CONCAT(apr.fecha_programada, ' ', apr.hora_programada) < ?`,
+       WHERE apr.esta_activa = true 
+         AND apr.is_deleted = false
+         AND CONCAT(apr.fecha_programada, ' ', apr.hora_programada) < $1`,
       [now]
     );
+    const overdueAlerts = result.rows;
 
     if (overdueAlerts.length > 0) {
       console.log(`⏰ ${overdueAlerts.length} alertas vencidas encontradas`);

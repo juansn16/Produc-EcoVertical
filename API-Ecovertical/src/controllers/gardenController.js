@@ -1,5 +1,7 @@
 import db from '../config/db.js';
-import { HuertoQueries, UsuarioHuertoQueries, HuertoDataQueries, AlertaQueries, UbicacionQueries, UsuarioQueries } from '../utils/queries.js';
+import { v4 as uuidv4 } from 'uuid';
+import { GardenQueries } from '../utils/queries/index.js';
+import { UbicacionQueries, UsuarioQueries } from '../utils/queries.js';
 
 // Listar huertos con filtros
 export const listGardens = async (req, res) => {
@@ -11,11 +13,9 @@ export const listGardens = async (req, res) => {
     console.log('🔍 listGardens - Parámetros:', { userId, userRole, type, status });
     
     // Obtener la ubicación del usuario para filtrar huertos públicos
-    const [userResult] = await db.execute(`
-      SELECT ubicacion_id FROM usuarios WHERE id = ? AND is_deleted = 0
-    `, [userId]);
+    const userResult = await db.query(GardenQueries.checkUserExists, [userId]);
     
-    if (userResult.length === 0) {
+    if (userResult.rows.length === 0) {
       console.log('❌ Usuario no encontrado:', userId);
       return res.status(404).json({
         success: false,
@@ -23,63 +23,21 @@ export const listGardens = async (req, res) => {
       });
     }
     
-    const userLocationId = userResult[0].ubicacion_id;
+    const userLocationId = userResult.rows[0].ubicacion_id;
     console.log('📍 Ubicación del usuario:', userLocationId);
     
-    let query = `
-      SELECT h.*, u.nombre as ubicacion_nombre, uc.nombre as creador_nombre,
-             COUNT(uh.usuario_id) as usuarios_asignados,
-             CASE 
-               WHEN uh_assigned.usuario_id IS NOT NULL THEN 'asignado'
-               WHEN h.usuario_creador = ? THEN 'propietario'
-               ELSE 'admin'
-             END as access_type
-      FROM huertos h
-      LEFT JOIN ubicaciones u ON h.ubicacion_id = u.id
-      LEFT JOIN usuarios uc ON h.usuario_creador = uc.id
-      LEFT JOIN usuario_huerto uh ON h.id = uh.huerto_id AND uh.is_deleted = 0
-      LEFT JOIN usuario_huerto uh_assigned ON h.id = uh_assigned.huerto_id AND uh_assigned.usuario_id = ? AND uh_assigned.is_deleted = 0
-      WHERE h.is_deleted = 0
-      AND (
-        -- Huertos privados: 
-        --   * Creados por el usuario actual
-        --   * O todos los privados del condominio si es admin/técnico
-        --   * O huertos donde el usuario está asignado como residente
-        (h.tipo = 'privado' AND (
-          h.usuario_creador = ? 
-          OR (h.ubicacion_id = ? AND ? IN ('administrador', 'tecnico'))
-          OR uh_assigned.usuario_id IS NOT NULL
-        ))
-        OR
-        -- Huertos públicos: solo los del mismo condominio
-        (h.tipo = 'publico' AND h.ubicacion_id = ?)
-      )
-    `;
+    // Usar la query centralizada para listar huertos con acceso
+    const gardens = await db.query(GardenQueries.listWithAccess, [userId, userLocationId, userRole]);
     
-    const params = [userId, userId, userId, userLocationId, userRole, userLocationId];
-    
-    if (type) {
-      query += ' AND h.tipo = ?';
-      params.push(type);
-    }
-    
-    // Agrupar para contar usuarios asignados
-    query += ' GROUP BY h.id ORDER BY h.created_at DESC';
-    
-    console.log('🔍 Query SQL:', query);
-    console.log('🔍 Parámetros:', params);
-    
-    const [gardens] = await db.execute(query, params);
-    
-    console.log('✅ Huertos encontrados:', gardens.length);
-    gardens.forEach(garden => {
+    console.log('✅ Huertos encontrados:', gardens.rows.length);
+    gardens.rows.forEach(garden => {
       console.log(`  - ${garden.nombre} (${garden.tipo}) - Acceso: ${garden.access_type}`);
     });
     
     res.json({
       success: true,
-      data: gardens,
-      total: gardens.length
+      data: gardens.rows,
+      total: gardens.rows.length
     });
   } catch (error) {
     console.error('Error al listar huertos:', error);
@@ -119,8 +77,8 @@ export const createGarden = async (req, res) => {
     }
     
     // Verificar que la ubicación existe
-    const [locationResult] = await db.execute(UbicacionQueries.getById, [location]);
-    if (locationResult.length === 0) {
+    const locationResult = await db.query(GardenQueries.checkLocationExists, [location]);
+    if (locationResult.rows.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'La ubicación especificada no existe'
@@ -129,19 +87,17 @@ export const createGarden = async (req, res) => {
     
     // Para huertos públicos, verificar permisos según el rol del usuario
     if (gardenType === 'publico') {
-      const [userResult] = await db.execute(`
-        SELECT ubicacion_id FROM usuarios WHERE id = ? AND is_deleted = 0
-      `, [userId]);
+      const userResult = await db.query(GardenQueries.checkUserExists, [userId]);
       
       console.log('🔍 Debug - Creando huerto público:', {
         userId,
-        userLocationId: userResult[0]?.ubicacion_id,
+        userLocationId: userResult.rows[0]?.ubicacion_id,
         requestedLocationId: location,
-        userExists: userResult.length > 0,
+        userExists: userResult.rows.length > 0,
         userRole
       });
       
-      if (userResult.length === 0) {
+      if (userResult.rows.length === 0) {
         console.log('❌ Error - Usuario no encontrado');
         return res.status(404).json({
           success: false,
@@ -151,10 +107,10 @@ export const createGarden = async (req, res) => {
       
       // Los administradores pueden crear huertos públicos en cualquier ubicación
       // Los residentes y técnicos solo pueden crear en su propio condominio
-      if (userRole !== 'administrador' && userResult[0].ubicacion_id !== location) {
+      if (userRole !== 'administrador' && userResult.rows[0].ubicacion_id !== location) {
         console.log('❌ Error - Usuario no puede crear huerto público:', {
           reason: 'Ubicación no coincide',
-          userLocationId: userResult[0]?.ubicacion_id,
+          userLocationId: userResult.rows[0]?.ubicacion_id,
           requestedLocationId: location,
           userRole
         });
@@ -168,18 +124,16 @@ export const createGarden = async (req, res) => {
     
     // Para huertos privados, verificar que el usuario tiene una ubicación asignada
     if (gardenType === 'privado') {
-      const [userResult] = await db.execute(`
-        SELECT ubicacion_id FROM usuarios WHERE id = ? AND is_deleted = 0
-      `, [userId]);
+      const userResult = await db.query(GardenQueries.checkUserExists, [userId]);
       
       console.log('🔍 Debug - Creando huerto privado:', {
         userId,
-        userLocationId: userResult[0]?.ubicacion_id,
+        userLocationId: userResult.rows[0]?.ubicacion_id,
         requestedLocationId: location,
-        userExists: userResult.length > 0
+        userExists: userResult.rows.length > 0
       });
       
-      if (userResult.length === 0) {
+      if (userResult.rows.length === 0) {
         console.log('❌ Error - Usuario no encontrado');
         return res.status(404).json({
           success: false,
@@ -189,13 +143,15 @@ export const createGarden = async (req, res) => {
       
       // Para huertos privados, el usuario puede crear en cualquier ubicación,
       // pero si no tiene ubicación asignada, usar la ubicación por defecto
-      if (!userResult[0].ubicacion_id && location) {
+      if (!userResult.rows[0].ubicacion_id && location) {
         console.log('⚠️ Warning - Usuario sin ubicación asignada, usando ubicación proporcionada');
       }
     }
     
     // Crear el huerto
-    const [result] = await db.execute(HuertoQueries.create, [
+    const gardenId = uuidv4();
+    await db.query(GardenQueries.create, [
+      gardenId,
       name,
       description || '',
       gardenType,
@@ -206,29 +162,24 @@ export const createGarden = async (req, res) => {
       null // imagen_url por defecto
     ]);
     
-    // Como usamos UUID(), necesitamos obtener el huerto recién creado
-    const [gardenResult] = await db.execute(`
-      SELECT h.*, u.nombre as ubicacion_nombre, uc.nombre as creador_nombre
-      FROM huertos h
-      LEFT JOIN ubicaciones u ON h.ubicacion_id = u.id
-      LEFT JOIN usuarios uc ON h.usuario_creador = uc.id
-      WHERE h.nombre = ? AND h.usuario_creador = ? AND h.is_deleted = 0
-      ORDER BY h.created_at DESC LIMIT 1
-    `, [name, userId]);
+    // Obtener el huerto recién creado
+    const gardenResult = await db.query(GardenQueries.getRecentlyCreated, [name, userId]);
     
-    const gardenId = gardenResult[0].id;
+    const createdGardenId = gardenResult.rows[0].id;
     
     // Asignar automáticamente al creador como propietario
-    await db.execute(UsuarioHuertoQueries.create, [
+    const assignmentId = uuidv4();
+    await db.query(GardenQueries.createUserGardenAssignment, [
+      assignmentId,
       userId,
-      gardenId,
+      createdGardenId,
       'propietario'
     ]);
     
     res.status(201).json({
       success: true,
       message: 'Huerto creado exitosamente',
-      data: gardenResult[0]
+      data: gardenResult.rows[0]
     });
   } catch (error) {
     console.error('Error al crear huerto:', error);
@@ -248,25 +199,16 @@ export const getGardenDetails = async (req, res) => {
     const userRole = req.user.role;
     
     // Obtener información del huerto con verificación de acceso
-    const [gardenResult] = await db.execute(`
-      SELECT h.*, u.nombre as ubicacion_nombre, u.calle, u.ciudad, u.estado,
-             uc.nombre as creador_nombre, uc.email as creador_email,
-             usr.ubicacion_id as user_location_id
-      FROM huertos h
-      LEFT JOIN ubicaciones u ON h.ubicacion_id = u.id
-      LEFT JOIN usuarios uc ON h.usuario_creador = uc.id
-      LEFT JOIN usuarios usr ON usr.id = ?
-      WHERE h.id = ? AND h.is_deleted = 0
-    `, [userId, gardenId]);
+    const gardenResult = await db.query(GardenQueries.getByIdWithDetails, [userId, gardenId]);
     
-    if (gardenResult.length === 0) {
+    if (gardenResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
       });
     }
     
-    const garden = gardenResult[0];
+    const garden = gardenResult.rows[0];
     
     // Verificar acceso según las nuevas reglas de seguridad
     if (garden.tipo === 'privado') {
@@ -299,26 +241,13 @@ export const getGardenDetails = async (req, res) => {
     }
     
     // Obtener usuarios asignados al huerto
-    const [usersResult] = await db.execute(`
-      SELECT uh.*, u.nombre, u.email, u.rol
-      FROM usuario_huerto uh
-      LEFT JOIN usuarios u ON uh.usuario_id = u.id
-      WHERE uh.huerto_id = ? AND uh.is_deleted = 0
-    `, [gardenId]);
+    const usersResult = await db.query(GardenQueries.getGardenUsers, [gardenId]);
     
     // Obtener estadísticas básicas
-    const [statsResult] = await db.execute(`
-      SELECT 
-        COUNT(*) as total_registros,
-        SUM(cantidad_agua) as total_agua,
-        SUM(cantidad_siembra) as total_siembra,
-        SUM(cantidad_cosecha) as total_cosecha
-      FROM huerto_data 
-      WHERE huerto_id = ? AND is_deleted = 0
-    `, [gardenId]);
+    const statsResult = await db.query(GardenQueries.getGardenStats, [gardenId]);
     
-    garden.usuarios_asignados = usersResult;
-    garden.estadisticas = statsResult[0];
+    garden.usuarios_asignados = usersResult.rows;
+    garden.estadisticas = statsResult.rows[0];
     
     res.json({
       success: true,
@@ -342,8 +271,8 @@ export const updateGarden = async (req, res) => {
     const userId = req.user.id;
     
     // Verificar que el huerto existe
-    const [gardenResult] = await db.execute(HuertoQueries.getById, [gardenId]);
-    if (gardenResult.length === 0) {
+    const gardenResult = await db.query(GardenQueries.getById, [gardenId]);
+    if (gardenResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
@@ -351,7 +280,7 @@ export const updateGarden = async (req, res) => {
     }
     
     // Verificar permisos (solo admin, técnico o creador del huerto pueden actualizar)
-    const garden = gardenResult[0];
+    const garden = gardenResult.rows[0];
     const userRole = req.user.rol;
     const isCreator = garden.usuario_creador === userId;
     
@@ -364,8 +293,8 @@ export const updateGarden = async (req, res) => {
     
     // Verificar ubicación si se está actualizando
     if (updateData.location) {
-      const [locationResult] = await db.execute(UbicacionQueries.getById, [updateData.location]);
-      if (locationResult.length === 0) {
+      const locationResult = await db.query(GardenQueries.checkLocationExists, [updateData.location]);
+      if (locationResult.rows.length === 0) {
         return res.status(400).json({
           success: false,
           message: 'La ubicación especificada no existe'
@@ -378,31 +307,31 @@ export const updateGarden = async (req, res) => {
     const updateValues = [];
     
     if (updateData.name) {
-      updateFields.push('nombre = ?');
+      updateFields.push('nombre');
       updateValues.push(updateData.name);
     }
     if (updateData.description !== undefined) {
-      updateFields.push('descripcion = ?');
+      updateFields.push('descripcion');
       updateValues.push(updateData.description);
     }
     if (updateData.type) {
-      updateFields.push('tipo = ?');
+      updateFields.push('tipo');
       updateValues.push(updateData.type);
     }
     if (updateData.dimensions) {
-      updateFields.push('superficie = ?');
+      updateFields.push('superficie');
       updateValues.push(updateData.dimensions);
     }
     if (updateData.plantCapacity) {
-      updateFields.push('capacidad = ?');
+      updateFields.push('capacidad');
       updateValues.push(updateData.plantCapacity);
     }
     if (updateData.location) {
-      updateFields.push('ubicacion_id = ?');
+      updateFields.push('ubicacion_id');
       updateValues.push(updateData.location);
     }
     if (updateData.imageUrl !== undefined) {
-      updateFields.push('imagen_url = ?');
+      updateFields.push('imagen_url');
       updateValues.push(updateData.imageUrl);
     }
     
@@ -415,27 +344,16 @@ export const updateGarden = async (req, res) => {
     
     updateValues.push(gardenId);
     
-    const updateQuery = `
-      UPDATE huertos 
-      SET ${updateFields.join(', ')}
-      WHERE id = ? AND is_deleted = 0
-    `;
-    
-    await db.execute(updateQuery, updateValues);
+    const updateQuery = GardenQueries.buildUpdateQuery(updateFields);
+    await db.query(updateQuery, updateValues);
     
     // Obtener el huerto actualizado
-    const [updatedGarden] = await db.execute(`
-      SELECT h.*, u.nombre as ubicacion_nombre, uc.nombre as creador_nombre
-      FROM huertos h
-      LEFT JOIN ubicaciones u ON h.ubicacion_id = u.id
-      LEFT JOIN usuarios uc ON h.usuario_creador = uc.id
-      WHERE h.id = ?
-    `, [gardenId]);
+    const updatedGarden = await db.query(GardenQueries.getRecentlyCreated, [garden.nombre, garden.usuario_creador]);
     
     res.json({
       success: true,
       message: 'Huerto actualizado exitosamente',
-      data: updatedGarden[0]
+      data: updatedGarden.rows[0]
     });
   } catch (error) {
     console.error('Error al actualizar huerto:', error);
@@ -453,8 +371,8 @@ export const deleteGarden = async (req, res) => {
     const { gardenId } = req.params;
     
     // Verificar que el huerto existe
-    const [gardenResult] = await db.execute(HuertoQueries.getById, [gardenId]);
-    if (gardenResult.length === 0) {
+    const gardenResult = await db.query(GardenQueries.getById, [gardenId]);
+    if (gardenResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
@@ -462,12 +380,10 @@ export const deleteGarden = async (req, res) => {
     }
     
     // Realizar soft delete
-    await db.execute(HuertoQueries.softDelete, [gardenId]);
+    await db.query(GardenQueries.softDelete, [gardenId]);
     
     // También hacer soft delete de las relaciones usuario-huerto
-    await db.execute(`
-      UPDATE usuario_huerto SET is_deleted = 1 WHERE huerto_id = ?
-    `, [gardenId]);
+    await db.query(GardenQueries.removeAllUsersFromGarden, [gardenId]);
     
     res.json({
       success: true,
@@ -491,8 +407,8 @@ export const recordMaintenance = async (req, res) => {
     const userId = req.user.id;
     
     // Verificar que el huerto existe
-    const [gardenResult] = await db.execute(HuertoQueries.getById, [gardenId]);
-    if (gardenResult.length === 0) {
+    const gardenResult = await db.query(GardenQueries.getById, [gardenId]);
+    if (gardenResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
@@ -503,7 +419,9 @@ export const recordMaintenance = async (req, res) => {
     const maintenanceDate = new Date(date);
     const expirationDate = new Date(maintenanceDate.getTime() + (duration * 60000)); // duration en minutos
     
-    const [alertResult] = await db.execute(AlertaQueries.create, [
+    const alertId = uuidv4();
+    await db.query(GardenQueries.createMaintenanceAlert, [
+      alertId,
       `Mantenimiento: ${type}`,
       `${description}\n\nNotas del técnico: ${technicianNotes || 'N/A'}\nDuración: ${duration} minutos`,
       'mantenimiento',
@@ -512,23 +430,21 @@ export const recordMaintenance = async (req, res) => {
       userId,
       maintenanceDate,
       expirationDate,
-      1,
+      true,
       `Tipo: ${type} | Duración: ${duration} min`
     ]);
     
     // Obtener usuarios asignados al huerto para notificarles
-    const [usersResult] = await db.execute(`
-      SELECT usuario_id FROM usuario_huerto 
-      WHERE huerto_id = ? AND is_deleted = 0
-    `, [gardenId]);
+    const usersResult = await db.query(GardenQueries.getGardenUsersForNotifications, [gardenId]);
     
     // Crear destinatarios para la alerta
-    const alertId = alertResult.insertId;
-    for (const user of usersResult) {
-      await db.execute(`
-        INSERT INTO alerta_destinatarios (id, alerta_id, usuario_id)
-        VALUES (UUID(), ?, ?)
-      `, [alertId, user.usuario_id]);
+    for (const user of usersResult.rows) {
+      const recipientId = uuidv4();
+      await db.query(GardenQueries.createAlertRecipients, [
+        recipientId,
+        alertId,
+        user.usuario_id
+      ]);
     }
     
     res.status(201).json({
@@ -540,7 +456,7 @@ export const recordMaintenance = async (req, res) => {
         description,
         date: maintenanceDate,
         duration,
-        affectedUsers: usersResult.length
+        affectedUsers: usersResult.rows.length
       }
     });
   } catch (error) {
@@ -560,41 +476,26 @@ export const getMaintenanceHistory = async (req, res) => {
     const { startDate, endDate } = req.query;
     
     // Verificar que el huerto existe
-    const [gardenResult] = await db.execute(HuertoQueries.getById, [gardenId]);
-    if (gardenResult.length === 0) {
+    const gardenResult = await db.query(GardenQueries.getById, [gardenId]);
+    if (gardenResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
       });
     }
     
-    let query = `
-      SELECT a.*, u.nombre as creador_nombre
-      FROM alertas a
-      LEFT JOIN usuarios u ON a.usuario_creador = u.id
-      WHERE a.huerto_id = ? AND a.tipo = 'mantenimiento' AND a.is_deleted = 0
-    `;
-    
-    const params = [gardenId];
-    
-    if (startDate) {
-      query += ' AND a.fecha_programada >= ?';
-      params.push(startDate);
+    // Obtener historial de mantenimiento
+    let maintenanceHistory;
+    if (startDate || endDate) {
+      maintenanceHistory = await db.query(GardenQueries.getMaintenanceHistoryWithDates, [gardenId, startDate, endDate]);
+    } else {
+      maintenanceHistory = await db.query(GardenQueries.getMaintenanceHistory, [gardenId]);
     }
-    
-    if (endDate) {
-      query += ' AND a.fecha_programada <= ?';
-      params.push(endDate);
-    }
-    
-    query += ' ORDER BY a.fecha_programada DESC';
-    
-    const [maintenanceHistory] = await db.execute(query, params);
     
     res.json({
       success: true,
-      data: maintenanceHistory,
-      total: maintenanceHistory.length
+      data: maintenanceHistory.rows,
+      total: maintenanceHistory.rows.length
     });
   } catch (error) {
     console.error('Error al obtener historial de mantenimiento:', error);
@@ -612,8 +513,8 @@ export const getGardenPlants = async (req, res) => {
     const { gardenId } = req.params;
     
     // Verificar que el huerto existe
-    const [gardenResult] = await db.execute(HuertoQueries.getById, [gardenId]);
-    if (gardenResult.length === 0) {
+    const gardenResult = await db.query(GardenQueries.getById, [gardenId]);
+    if (gardenResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
@@ -621,16 +522,10 @@ export const getGardenPlants = async (req, res) => {
     }
     
     // Obtener datos del huerto (siembra, cosecha, etc.)
-    const [gardenData] = await db.execute(`
-      SELECT hd.*, u.nombre as registrador_nombre
-      FROM huerto_data hd
-      LEFT JOIN usuarios u ON hd.usuario_registro = u.id
-      WHERE hd.huerto_id = ? AND hd.is_deleted = 0
-      ORDER BY hd.fecha DESC
-    `, [gardenId]);
+    const gardenDataResult = await db.query(GardenQueries.getGardenData, [gardenId]);
     
     // Calcular estadísticas
-    const stats = gardenData.reduce((acc, record) => {
+    const stats = gardenDataResult.rows.reduce((acc, record) => {
       acc.total_siembra += record.cantidad_siembra || 0;
       acc.total_cosecha += record.cantidad_cosecha || 0;
       acc.total_agua += record.cantidad_agua || 0;
@@ -646,9 +541,9 @@ export const getGardenPlants = async (req, res) => {
     res.json({
       success: true,
       data: {
-        records: gardenData,
+        records: gardenDataResult.rows,
         statistics: stats,
-        total_records: gardenData.length
+        total_records: gardenDataResult.rows.length
       }
     });
   } catch (error) {
@@ -682,35 +577,26 @@ export const assignResident = async (req, res) => {
     console.log('✅ assignResident - Usuario es administrador');
 
     // Verificar que el huerto existe
-    console.log('🔍 assignResident - Verificando huerto:', gardenId);
-    const [gardenResult] = await db.execute(HuertoQueries.getById, [gardenId]);
-    console.log('🔍 assignResident - Resultado de huerto:', gardenResult);
-    if (gardenResult.length === 0) {
-      console.log('❌ assignResident - Huerto no encontrado');
+    const gardenResult = await db.query(GardenQueries.getById, [gardenId]);
+    if (gardenResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
       });
     }
 
-    const garden = gardenResult[0];
-    console.log('✅ assignResident - Huerto encontrado:', garden);
+    const garden = gardenResult.rows[0];
 
     // Verificar que el administrador puede gestionar este huerto
-    // (debe ser del mismo condominio o ser el creador)
-    const [adminLocation] = await db.execute(
-      'SELECT ubicacion_id FROM usuarios WHERE id = ? AND is_deleted = 0',
-      [adminId]
-    );
-
-    if (adminLocation.length === 0) {
+    const adminLocationResult = await db.query(GardenQueries.checkUserExists, [adminId]);
+    if (adminLocationResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Administrador no encontrado'
       });
     }
 
-    const adminLocationId = adminLocation[0].ubicacion_id;
+    const adminLocationId = adminLocationResult.rows[0].ubicacion_id;
 
     // Verificar que el huerto pertenece al mismo condominio que el administrador
     if (garden.ubicacion_id !== adminLocationId && garden.usuario_creador !== adminId) {
@@ -721,15 +607,15 @@ export const assignResident = async (req, res) => {
     }
     
     // Verificar que el usuario existe
-    const [userResult] = await db.execute(UsuarioQueries.getById, [userId]);
-    if (userResult.length === 0) {
+    const userResult = await db.query(GardenQueries.getUserInfo, [userId]);
+    if (userResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Usuario no encontrado'
       });
     }
 
-    const user = userResult[0];
+    const user = userResult.rows[0];
 
     // Verificar que el usuario es residente
     if (user.rol !== 'residente') {
@@ -748,20 +634,13 @@ export const assignResident = async (req, res) => {
     }
     
     // Verificar que no esté ya asignado (incluyendo registros eliminados)
-    console.log('🔍 assignResident - Verificando asignaciones existentes');
-    const [existingAssignment] = await db.execute(`
-      SELECT * FROM usuario_huerto 
-      WHERE usuario_id = ? AND huerto_id = ?
-    `, [userId, gardenId]);
+    const existingAssignmentResult = await db.query(GardenQueries.checkExistingAssignment, [userId, gardenId]);
     
-    console.log('🔍 assignResident - Asignaciones existentes:', existingAssignment);
-    
-    if (existingAssignment.length > 0) {
-      const assignment = existingAssignment[0];
+    if (existingAssignmentResult.rows.length > 0) {
+      const assignment = existingAssignmentResult.rows[0];
       
       // Si ya existe una asignación activa
-      if (assignment.is_deleted === 0) {
-        console.log('❌ assignResident - Usuario ya está asignado activamente');
+      if (assignment.is_deleted === false) {
         return res.status(400).json({
           success: false,
           message: 'El usuario ya está asignado a este huerto'
@@ -769,14 +648,7 @@ export const assignResident = async (req, res) => {
       }
       
       // Si existe una asignación eliminada (soft delete), reactivarla
-      console.log('🔄 assignResident - Reactivando asignación existente');
-      await db.execute(`
-        UPDATE usuario_huerto 
-        SET is_deleted = 0, rol = ? 
-        WHERE usuario_id = ? AND huerto_id = ?
-      `, ['colaborador', userId, gardenId]);
-      
-      console.log('✅ assignResident - Asignación reactivada exitosamente');
+      await db.query(GardenQueries.reactivateAssignment, ['colaborador', userId, gardenId]);
       
       return res.json({
         success: true,
@@ -791,12 +663,9 @@ export const assignResident = async (req, res) => {
     }
     
     // Verificar capacidad del huerto
-    const currentUsers = await db.execute(`
-      SELECT COUNT(*) as count FROM usuario_huerto 
-      WHERE huerto_id = ? AND is_deleted = 0
-    `, [gardenId]);
+    const currentUsersResult = await db.query(GardenQueries.countGardenUsers, [gardenId]);
     
-    if (currentUsers[0][0].count >= gardenResult[0].capacidad) {
+    if (currentUsersResult.rows[0].count >= garden.capacidad) {
       return res.status(400).json({
         success: false,
         message: 'El huerto ha alcanzado su capacidad máxima de usuarios'
@@ -804,17 +673,7 @@ export const assignResident = async (req, res) => {
     }
     
     // Asignar usuario al huerto
-    console.log('🔍 assignResident - Creando asignación usuario-huerto');
-    console.log('🔍 assignResident - Query:', UsuarioHuertoQueries.create);
-    console.log('🔍 assignResident - Parámetros:', [userId, gardenId, 'colaborador']);
-    
-    await db.execute(UsuarioHuertoQueries.create, [
-      userId,
-      gardenId,
-      'colaborador'
-    ]);
-    
-    console.log('✅ assignResident - Asignación creada exitosamente');
+    await db.query(GardenQueries.createUserGardenAssignment, [uuidv4(), userId, gardenId, 'colaborador']);
     
     res.json({
       success: true,
@@ -853,8 +712,8 @@ export const recordGardenData = async (req, res) => {
     const userId = req.user.id;
     
     // Verificar que el huerto existe
-    const [gardenResult] = await db.execute(HuertoQueries.getById, [gardenId]);
-    if (gardenResult.length === 0) {
+    const gardenResult = await db.query(GardenQueries.getById, [gardenId]);
+    if (gardenResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
@@ -862,12 +721,9 @@ export const recordGardenData = async (req, res) => {
     }
     
     // Verificar que el usuario tiene acceso al huerto
-    const [userAccessResult] = await db.execute(`
-      SELECT * FROM usuario_huerto 
-      WHERE usuario_id = ? AND huerto_id = ? AND is_deleted = 0
-    `, [userId, gardenId]);
+    const userAccessResult = await db.query(GardenQueries.checkUserGardenAccess, [userId, gardenId]);
     
-    if (userAccessResult.length === 0 && req.user.rol !== 'administrador' && req.user.rol !== 'tecnico') {
+    if (userAccessResult.rows.length === 0 && req.user.rol !== 'administrador' && req.user.rol !== 'tecnico') {
       return res.status(403).json({
         success: false,
         message: 'No tienes permisos para registrar datos en este huerto'
@@ -884,7 +740,9 @@ export const recordGardenData = async (req, res) => {
     }
     
     // Crear registro de datos del huerto
-    const [result] = await db.execute(HuertoDataQueries.create, [
+    const dataId = uuidv4();
+    await db.query(GardenQueries.createGardenData, [
+      dataId,
       gardenId,
       fecha,
       cantidad_agua || 0,
@@ -898,20 +756,18 @@ export const recordGardenData = async (req, res) => {
       userId
     ]);
     
-    const dataId = result.insertId;
-    
     // Obtener el registro creado
-    const [dataResult] = await db.execute(`
+    const dataResult = await db.query(`
       SELECT hd.*, u.nombre as registrador_nombre
       FROM huerto_data hd
       LEFT JOIN usuarios u ON hd.usuario_registro = u.id
-      WHERE hd.id = ?
+      WHERE hd.id = $1
     `, [dataId]);
     
     res.status(201).json({
       success: true,
       message: 'Datos del huerto registrados exitosamente',
-      data: dataResult[0]
+      data: dataResult.rows[0]
     });
   } catch (error) {
     console.error('Error al registrar datos del huerto:', error);
@@ -929,63 +785,32 @@ export const getUserGardens = async (req, res) => {
     const userId = req.user.id;
     const userRole = req.user.role;
     
-    let query;
-    let params;
+    let gardens;
     
     if (userRole === 'administrador') {
       // Los administradores pueden ver todos los huertos de su condominio
       // Primero obtener la ubicación del administrador
-      const [adminResult] = await db.execute(`
-        SELECT ubicacion_id FROM usuarios WHERE id = ? AND is_deleted = 0
-      `, [userId]);
+      const adminResult = await db.query(GardenQueries.checkUserExists, [userId]);
       
-      if (adminResult.length === 0) {
+      if (adminResult.rows.length === 0) {
         return res.status(404).json({
           success: false,
           message: 'Administrador no encontrado'
         });
       }
       
-      const adminLocationId = adminResult[0].ubicacion_id;
+      const adminLocationId = adminResult.rows[0].ubicacion_id;
       
-      query = `
-        SELECT h.*, u.nombre as ubicacion_nombre, uc.nombre as creador_nombre,
-               uh.rol as user_role, uh.fecha_union,
-               CASE 
-                 WHEN uh.usuario_id IS NOT NULL THEN uh.rol
-                 WHEN h.usuario_creador = ? THEN 'propietario'
-                 ELSE 'administrador'
-               END as access_role
-        FROM huertos h
-        LEFT JOIN ubicaciones u ON h.ubicacion_id = u.id
-        LEFT JOIN usuarios uc ON h.usuario_creador = uc.id
-        LEFT JOIN usuario_huerto uh ON h.id = uh.huerto_id AND uh.usuario_id = ? AND uh.is_deleted = 0
-        WHERE h.is_deleted = 0 AND h.ubicacion_id = ?
-        ORDER BY h.created_at DESC
-      `;
-      params = [userId, userId, adminLocationId];
+      gardens = await db.query(GardenQueries.getUserGardens, [userId, userId, adminLocationId]);
     } else {
       // Otros usuarios solo ven huertos donde están asignados
-      query = `
-        SELECT h.*, u.nombre as ubicacion_nombre, uc.nombre as creador_nombre,
-               uh.rol as user_role, uh.fecha_union,
-               uh.rol as access_role
-        FROM huertos h
-        INNER JOIN usuario_huerto uh ON h.id = uh.huerto_id AND uh.usuario_id = ? AND uh.is_deleted = 0
-        LEFT JOIN ubicaciones u ON h.ubicacion_id = u.id
-        LEFT JOIN usuarios uc ON h.usuario_creador = uc.id
-        WHERE h.is_deleted = 0
-        ORDER BY uh.fecha_union DESC
-      `;
-      params = [userId];
+      gardens = await db.query(GardenQueries.getUserAssignedGardens, [userId]);
     }
-    
-    const [gardens] = await db.execute(query, params);
     
     res.json({
       success: true,
-      data: gardens,
-      total: gardens.length
+      data: gardens.rows,
+      total: gardens.rows.length
     });
   } catch (error) {
     console.error('Error al obtener huertos del usuario:', error);
@@ -1013,8 +838,8 @@ export const unsubscribeFromGarden = async (req, res) => {
     }
 
     // Verificar que el huerto existe
-    const [gardenResult] = await db.execute(HuertoQueries.getById, [gardenId]);
-    if (gardenResult.length === 0) {
+    const gardenResult = await db.query(GardenQueries.getById, [gardenId]);
+    if (gardenResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
@@ -1022,12 +847,9 @@ export const unsubscribeFromGarden = async (req, res) => {
     }
 
     // Verificar que el usuario está asignado al huerto
-    const [assignmentResult] = await db.execute(
-      'SELECT * FROM usuario_huerto WHERE usuario_id = ? AND huerto_id = ? AND is_deleted = 0',
-      [userId, gardenId]
-    );
+    const assignmentResult = await db.query(GardenQueries.checkUserGardenAssignment, [userId, gardenId]);
 
-    if (assignmentResult.length === 0) {
+    if (assignmentResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'No estás asignado a este huerto'
@@ -1035,10 +857,9 @@ export const unsubscribeFromGarden = async (req, res) => {
     }
 
     // Eliminar la asignación (soft delete)
-    await db.execute(
-      'UPDATE usuario_huerto SET is_deleted = 1 WHERE usuario_id = ? AND huerto_id = ?',
-      [userId, gardenId]
-    );
+    await db.query(`
+      UPDATE usuario_huerto SET is_deleted = true WHERE usuario_id = $1 AND huerto_id = $2
+    `, [userId, gardenId]);
 
     res.json({
       success: true,
@@ -1075,30 +896,27 @@ export const getGardenResidents = async (req, res) => {
     }
 
     // Verificar que el huerto existe
-    const [gardenResult] = await db.execute(HuertoQueries.getById, [gardenId]);
-    if (gardenResult.length === 0) {
+    const gardenResult = await db.query(GardenQueries.getById, [gardenId]);
+    if (gardenResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
       });
     }
 
-    const garden = gardenResult[0];
+    const garden = gardenResult.rows[0];
 
     // Verificar que el administrador puede gestionar este huerto
-    const [adminLocation] = await db.execute(
-      'SELECT ubicacion_id FROM usuarios WHERE id = ? AND is_deleted = 0',
-      [adminId]
-    );
+    const adminLocationResult = await db.query(GardenQueries.checkUserExists, [adminId]);
 
-    if (adminLocation.length === 0) {
+    if (adminLocationResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Administrador no encontrado'
       });
     }
 
-    const adminLocationId = adminLocation[0].ubicacion_id;
+    const adminLocationId = adminLocationResult.rows[0].ubicacion_id;
 
     // Verificar que el huerto pertenece al mismo condominio que el administrador
     if (garden.ubicacion_id !== adminLocationId && garden.usuario_creador !== adminId) {
@@ -1109,27 +927,12 @@ export const getGardenResidents = async (req, res) => {
     }
 
     // Obtener residentes del huerto
-    const [residents] = await db.execute(
-      `SELECT 
-         uh.id as assignment_id,
-         uh.usuario_id,
-         uh.rol as assignment_role,
-         uh.created_at as assigned_at,
-         u.nombre,
-         u.email,
-         u.telefono,
-         u.rol as user_role
-       FROM usuario_huerto uh
-       LEFT JOIN usuarios u ON uh.usuario_id = u.id
-       WHERE uh.huerto_id = ? AND uh.is_deleted = 0 AND u.is_deleted = 0
-       ORDER BY uh.created_at DESC`,
-      [gardenId]
-    );
+    const residentsResult = await db.query(GardenQueries.getGardenResidents, [gardenId]);
 
     res.json({
       success: true,
-      data: residents,
-      total: residents.length,
+      data: residentsResult.rows,
+      total: residentsResult.rows.length,
       garden: {
         id: garden.id,
         nombre: garden.nombre,
@@ -1156,25 +959,22 @@ export const checkUserGardenAssignment = async (req, res) => {
     console.log('🔍 checkUserGardenAssignment - Parámetros:', { gardenId, userId, requestingUserId, requestingUserRole });
 
     // Verificar que el huerto existe
-    const [gardenResult] = await db.execute(HuertoQueries.getById, [gardenId]);
-    if (gardenResult.length === 0) {
+    const gardenResult = await db.query(GardenQueries.getById, [gardenId]);
+    if (gardenResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
       });
     }
 
-    const garden = gardenResult[0];
+    const garden = gardenResult.rows[0];
 
     // Si el usuario que solicita es administrador o técnico, puede verificar cualquier usuario
     // Si es el propio usuario, también puede verificar su estado
     if (requestingUserRole === 'administrador' || requestingUserRole === 'tecnico' || requestingUserId === userId) {
-      const [assignmentResult] = await db.execute(
-        'SELECT * FROM usuario_huerto WHERE usuario_id = ? AND huerto_id = ? AND is_deleted = 0',
-        [userId, gardenId]
-      );
+      const assignmentResult = await db.query(GardenQueries.checkUserGardenAssignment, [userId, gardenId]);
 
-      const isAssigned = assignmentResult.length > 0;
+      const isAssigned = assignmentResult.rows.length > 0;
 
       res.json({
         success: true,
@@ -1182,7 +982,7 @@ export const checkUserGardenAssignment = async (req, res) => {
           userId,
           gardenId,
           isAssigned,
-          assignment: isAssigned ? assignmentResult[0] : null
+          assignment: isAssigned ? assignmentResult.rows[0] : null
         }
       });
     } else {
@@ -1222,93 +1022,61 @@ export const removeResident = async (req, res) => {
     console.log('✅ removeResident - Usuario es administrador');
 
     // Verificar que el huerto existe
-    console.log('🔍 removeResident - Verificando huerto con query:', HuertoQueries.getById);
-    const [gardenResult] = await db.execute(HuertoQueries.getById, [gardenId]);
-    console.log('🔍 removeResident - Resultado de huerto:', gardenResult);
+    const gardenResult = await db.query(GardenQueries.getById, [gardenId]);
     
-    if (gardenResult.length === 0) {
-      console.log('❌ removeResident - Huerto no encontrado');
+    if (gardenResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
       });
     }
 
-    const garden = gardenResult[0];
-    console.log('✅ removeResident - Huerto encontrado:', garden);
+    const garden = gardenResult.rows[0];
 
     // Verificar que el administrador puede gestionar este huerto
-    console.log('🔍 removeResident - Verificando ubicación del administrador');
-    const [adminLocation] = await db.execute(
-      'SELECT ubicacion_id FROM usuarios WHERE id = ? AND is_deleted = 0',
-      [adminId]
-    );
-    console.log('🔍 removeResident - Ubicación del administrador:', adminLocation);
+    const adminLocationResult = await db.query(GardenQueries.checkUserExists, [adminId]);
 
-    if (adminLocation.length === 0) {
-      console.log('❌ removeResident - Administrador no encontrado');
+    if (adminLocationResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Administrador no encontrado'
       });
     }
 
-    const adminLocationId = adminLocation[0].ubicacion_id;
-    console.log('🔍 removeResident - adminLocationId:', adminLocationId);
+    const adminLocationId = adminLocationResult.rows[0].ubicacion_id;
 
     // Verificar que el huerto pertenece al mismo condominio que el administrador
     if (garden.ubicacion_id !== adminLocationId && garden.usuario_creador !== adminId) {
-      console.log('❌ removeResident - No puede gestionar huertos de otros condominios');
-      console.log('🔍 removeResident - garden.ubicacion_id:', garden.ubicacion_id);
-      console.log('🔍 removeResident - garden.usuario_creador:', garden.usuario_creador);
       return res.status(403).json({
         success: false,
         message: 'No puedes gestionar huertos de otros condominios'
       });
     }
 
-    console.log('✅ removeResident - Permisos de condominio verificados');
-
     // Verificar que el usuario está asignado al huerto
-    console.log('🔍 removeResident - Verificando asignación del usuario');
-    const [assignmentResult] = await db.execute(
-      'SELECT * FROM usuario_huerto WHERE usuario_id = ? AND huerto_id = ? AND is_deleted = 0',
-      [userId, gardenId]
-    );
-    console.log('🔍 removeResident - Resultado de asignación:', assignmentResult);
+    const assignmentResult = await db.query(GardenQueries.checkUserGardenAssignment, [userId, gardenId]);
 
-    if (assignmentResult.length === 0) {
-      console.log('❌ removeResident - Usuario no está asignado al huerto');
+    if (assignmentResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'El usuario no está asignado a este huerto'
       });
     }
 
-    console.log('✅ removeResident - Usuario está asignado al huerto');
-
     // Verificar que el usuario no es el propietario del huerto
-    const assignment = assignmentResult[0];
-    console.log('🔍 removeResident - Verificando rol del usuario:', assignment.assignment_role);
+    const assignment = assignmentResult.rows[0];
     
-    if (assignment.assignment_role === 'propietario') {
-      console.log('❌ removeResident - No se puede eliminar al propietario del huerto');
+    if (assignment.rol === 'propietario') {
       return res.status(403).json({
         success: false,
         message: 'No se puede eliminar al propietario del huerto'
       });
     }
 
-    console.log('✅ removeResident - Usuario no es propietario, procediendo con la eliminación');
-
     // Eliminar la asignación (soft delete)
-    console.log('🔍 removeResident - Eliminando asignación (soft delete)');
-    await db.execute(
-      'UPDATE usuario_huerto SET is_deleted = 1 WHERE usuario_id = ? AND huerto_id = ?',
-      [userId, gardenId]
-    );
-
-    console.log('✅ removeResident - Asignación eliminada exitosamente');
+    await db.query(`
+      UPDATE usuario_huerto SET is_deleted = true WHERE usuario_id = $1 AND huerto_id = $2
+    `, [userId, gardenId]);
 
     res.json({
       success: true,

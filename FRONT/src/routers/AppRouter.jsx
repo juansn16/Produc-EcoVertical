@@ -13,6 +13,7 @@ import { isAuthenticated } from "@/services/authService";
 import MapaTest from "@/components/garden/MapaTest";
 import MapaSimple from "@/components/garden/MapaSimple";
 import FormularioTest from "@/components/garden/FormularioTest";
+import WebSocketStatus from "@/components/WebSocketStatus";
 
 
 import AromaticasPage from "@/pages/AromaticasPage";
@@ -65,7 +66,8 @@ const PublicRoute = ({ children }) => {
 
 const AppRoutes = () => {
   return (
-    <Routes>
+    <>
+      <Routes>
       {/* Rutas públicas */}
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<PublicRoute><AuthPage /></PublicRoute>} />
@@ -108,7 +110,11 @@ const AppRoutes = () => {
       
       {/* Redirección por defecto */}
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      </Routes>
+      
+      {/* Componente de estado WebSocket */}
+      <WebSocketStatus />
+    </>
   );
 };
 

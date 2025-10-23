@@ -82,28 +82,28 @@ export const canManageCondominiumUsers = async (req, res, next) => {
 		const targetUserId = req.params.id;
 
 		// Obtener la ubicación del administrador
-		const [adminLocation] = await db.query(
-			"SELECT ubicacion_id FROM usuarios WHERE id = ? AND is_deleted = 0",
+		const adminLocation = await db.query(
+			"SELECT ubicacion_id FROM usuarios WHERE id = $1 AND is_deleted = false",
 			[adminId]
 		);
 
-		if (!adminLocation.length) {
+		if (!adminLocation.rows.length) {
 			return res.status(404).json({ message: 'Administrador no encontrado' });
 		}
 
-		const adminLocationId = adminLocation[0].ubicacion_id;
+		const adminLocationId = adminLocation.rows[0].ubicacion_id;
 
 		// Obtener la ubicación del usuario objetivo
-		const [targetUserLocation] = await db.query(
-			"SELECT ubicacion_id, nombre, rol FROM usuarios WHERE id = ? AND is_deleted = 0",
+		const targetUserLocation = await db.query(
+			"SELECT ubicacion_id, nombre, rol FROM usuarios WHERE id = $1 AND is_deleted = false",
 			[targetUserId]
 		);
 
-		if (!targetUserLocation.length) {
+		if (!targetUserLocation.rows.length) {
 			return res.status(404).json({ message: 'Usuario objetivo no encontrado' });
 		}
 
-		const targetUser = targetUserLocation[0];
+		const targetUser = targetUserLocation.rows[0];
 
 		// Verificar que ambos usuarios pertenecen al mismo condominio
 		if (adminLocationId !== targetUser.ubicacion_id) {

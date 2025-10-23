@@ -152,39 +152,25 @@ class IrrigationAlertService {
 
   /**
    * Guarda la conexión del usuario en la base de datos
-   * Elimina conexiones previas del mismo usuario para evitar duplicados
+   * Usa ON CONFLICT para manejar conexiones duplicadas de manera atómica
    */
   async saveUserConnection(userId, socketId) {
     try {
-      // Primero eliminar conexiones previas del mismo usuario
-      await db.execute(
-        'DELETE FROM usuarios_conectados WHERE usuario_id = ?',
-        [userId]
-      );
-      
-      // Luego insertar la nueva conexión
-      await db.execute(
+      // Usar ON CONFLICT para manejar duplicados de manera atómica
+      await db.query(
         `INSERT INTO usuarios_conectados (id, usuario_id, socket_id, fecha_conexion, ultima_actividad) 
-         VALUES (?, ?, ?, NOW(), NOW())`,
+         VALUES ($1, $2, $3, NOW(), NOW())
+         ON CONFLICT (usuario_id) DO UPDATE SET 
+           socket_id = EXCLUDED.socket_id,
+           fecha_conexion = NOW(),
+           ultima_actividad = NOW()`,
         [uuidv4(), userId, socketId]
       );
-      // Conexión guardada exitosamente
+      console.log(`✅ Conexión guardada para usuario: ${userId}`);
     } catch (error) {
       console.error('Error guardando conexión de usuario:', error);
-      // Si hay error con alguna columna, intentar estructura básica con manejo de duplicados
-      try {
-        await db.execute(
-          `INSERT INTO usuarios_conectados (usuario_id, socket_id) 
-           VALUES (?, ?) 
-           ON DUPLICATE KEY UPDATE socket_id = VALUES(socket_id)`,
-          [userId, socketId]
-        );
-        // Conexión guardada exitosamente
-      } catch (fallbackError) {
-        console.error('Error en fallback guardando conexión:', fallbackError);
-        // Si aún falla, solo logear el error pero no lanzar excepción
-        console.log(`⚠️ No se pudo guardar conexión para usuario ${userId}, continuando...`);
-      }
+      // Si aún falla, solo logear el error pero no lanzar excepción
+      console.log(`⚠️ No se pudo guardar conexión para usuario ${userId}, continuando...`);
     }
   }
 
@@ -193,8 +179,8 @@ class IrrigationAlertService {
    */
   async removeUserConnection(userId) {
     try {
-      await db.execute(
-        'DELETE FROM usuarios_conectados WHERE usuario_id = ?',
+      await db.query(
+        'DELETE FROM usuarios_conectados WHERE usuario_id = $1',
         [userId]
       );
       console.log(`🗑️ Conexión removida para usuario: ${userId}`);
@@ -209,23 +195,23 @@ class IrrigationAlertService {
    */
   async cleanInactiveConnections() {
     try {
-      const [result] = await db.execute(
+      const result = await db.query(
         `DELETE FROM usuarios_conectados 
-         WHERE fecha_conexion < DATE_SUB(NOW(), INTERVAL 1 HOUR)
-         OR ultima_actividad < DATE_SUB(NOW(), INTERVAL 1 HOUR)`
+         WHERE fecha_conexion < NOW() - INTERVAL '1 HOUR'
+         OR ultima_actividad < NOW() - INTERVAL '1 HOUR'`
       );
       
-      if (result.affectedRows > 0) {
-        console.log(`🧹 Conexiones inactivas limpiadas: ${result.affectedRows} registros eliminados`);
+      if (result.rowCount > 0) {
+        console.log(`🧹 Conexiones inactivas limpiadas: ${result.rowCount} registros eliminados`);
       }
     } catch (error) {
       // Si las columnas no existen, usar estructura básica
       try {
-        const [result] = await db.execute(
+        const result = await db.query(
           `DELETE FROM usuarios_conectados 
            WHERE socket_id NOT IN (SELECT DISTINCT socket_id FROM usuarios_conectados LIMIT 100)`
         );
-        console.log(`🧹 Limpieza básica completada: ${result.affectedRows || 0} registros`);
+        console.log(`🧹 Limpieza básica completada: ${result.rowCount || 0} registros`);
       } catch (fallbackError) {
         console.error('Error en limpieza de conexiones:', fallbackError);
       }
@@ -318,29 +304,23 @@ class IrrigationAlertService {
       // Verificando pre-alertas
 
       // Buscar alertas que necesitan pre-notificación
-      const [preAlerts] = await db.execute(
+      const result = await db.query(
         `SELECT ar.id, ar.huerto_id, ar.descripcion, ar.fecha_alerta, ar.hora_alerta,
                 h.nombre as huerto_nombre, h.usuario_creador as propietario_id
          FROM alertas_riego ar
-         JOIN huertos h ON ar.huerto_id COLLATE utf8mb4_unicode_ci = h.id COLLATE utf8mb4_unicode_ci
-         WHERE ar.fecha_alerta = ? 
-         AND ar.hora_alerta = ?
-         AND ar.estado = 'activa'
-         AND ar.pre_notificacion_enviada = 0`,
+         JOIN huertos h ON ar.huerto_id = h.id
+         WHERE ar.fecha_alerta = $1 
+         AND ar.hora_alerta = $2
+         AND ar.estado = 'activa'`,
         [targetDate, targetTime]
       );
+      const preAlerts = result.rows;
 
       if (preAlerts.length > 0) {
         console.log(`📢 Enviando ${preAlerts.length} pre-notificaciones de riego`);
         
         for (const alert of preAlerts) {
           await this.sendPreNotification(alert);
-          
-          // Marcar pre-notificación como enviada
-          await db.execute(
-            'UPDATE alertas_riego SET pre_notificacion_enviada = 1 WHERE id = ?',
-            [alert.id]
-          );
         }
       }
     } catch (error) {
@@ -364,16 +344,17 @@ class IrrigationAlertService {
       console.log(`🔍 Verificando alertas vencidas para ${currentDate} a las ${currentTime}`);
 
       // Buscar alertas que deben completarse ahora
-      const [dueAlerts] = await db.execute(
+      const result = await db.query(
         `SELECT ar.id, ar.huerto_id, ar.descripcion, ar.fecha_alerta, ar.hora_alerta,
                 h.nombre as huerto_nombre, h.usuario_creador as propietario_id
          FROM alertas_riego ar
          JOIN huertos h ON ar.huerto_id = h.id
-         WHERE ar.fecha_alerta = ? 
-         AND ar.hora_alerta = ?
+         WHERE ar.fecha_alerta = $1 
+         AND ar.hora_alerta = $2
          AND ar.estado = 'activa'`,
         [currentDate, currentTime]
       );
+      const dueAlerts = result.rows;
 
       if (dueAlerts.length > 0) {
         console.log(`⏰ Procesando ${dueAlerts.length} alertas vencidas`);
@@ -405,13 +386,14 @@ class IrrigationAlertService {
       await this.sendPreNotificationToUser(propietario_id, alertId, huerto_id, huerto_nombre, descripcion, fecha_alerta, hora_alerta, 'propietario');
 
       // 2. Obtener y notificar colaboradores del huerto
-      const [colaboradores] = await db.execute(
+      const result = await db.query(
         `SELECT uh.usuario_id, u.nombre
          FROM usuario_huerto uh
          JOIN usuarios u ON uh.usuario_id = u.id
-         WHERE uh.huerto_id = ? AND uh.rol = 'colaborador' AND uh.is_deleted = 0 AND u.is_deleted = 0`,
+         WHERE uh.huerto_id = $1 AND uh.rol = 'colaborador' AND uh.is_deleted = false AND u.is_deleted = false`,
         [huerto_id]
       );
+      const colaboradores = result.rows;
 
       console.log(`👥 Enviando pre-notificación a ${colaboradores.length} colaboradores del huerto ${huerto_nombre}`);
 
@@ -547,13 +529,14 @@ class IrrigationAlertService {
       await this.processUserIrrigationAlert(propietario_id, alertId, huerto_id, huerto_nombre, descripcion, 'propietario');
 
       // 2. Obtener y procesar colaboradores del huerto
-      const [colaboradores] = await db.execute(
+      const result = await db.query(
         `SELECT uh.usuario_id, u.nombre
          FROM usuario_huerto uh
          JOIN usuarios u ON uh.usuario_id = u.id
-         WHERE uh.huerto_id = ? AND uh.rol = 'colaborador' AND uh.is_deleted = 0 AND u.is_deleted = 0`,
+         WHERE uh.huerto_id = $1 AND uh.rol = 'colaborador' AND uh.is_deleted = false AND u.is_deleted = false`,
         [huerto_id]
       );
+      const colaboradores = result.rows;
 
       console.log(`👥 Procesando ${colaboradores.length} colaboradores del huerto ${huerto_nombre}`);
 
@@ -570,8 +553,8 @@ class IrrigationAlertService {
       }
 
       // Marcar alerta como completada
-      await db.execute(
-        'UPDATE alertas_riego SET estado = ? WHERE id = ?',
+      await db.query(
+        'UPDATE alertas_riego SET estado = $1 WHERE id = $2',
         ['completada', alertId]
       );
 
@@ -605,10 +588,11 @@ class IrrigationAlertService {
   async checkIfUsersAreConnected(huertoId) {
     try {
       // 1. Obtener el propietario del huerto
-      const [huertoInfo] = await db.execute(
-        'SELECT usuario_creador FROM huertos WHERE id = ?',
+      const result = await db.query(
+        'SELECT usuario_creador FROM huertos WHERE id = $1',
         [huertoId]
       );
+      const huertoInfo = result.rows;
 
       if (huertoInfo.length === 0) {
         return false;
@@ -624,13 +608,14 @@ class IrrigationAlertService {
       }
 
       // 3. Obtener colaboradores del huerto
-      const [colaboradores] = await db.execute(
+      const result2 = await db.query(
         `SELECT uh.usuario_id, u.nombre
          FROM usuario_huerto uh
          JOIN usuarios u ON uh.usuario_id = u.id
-         WHERE uh.huerto_id = ? AND uh.rol = 'colaborador' AND uh.is_deleted = 0 AND u.is_deleted = 0`,
+         WHERE uh.huerto_id = $1 AND uh.rol = 'colaborador' AND uh.is_deleted = false AND u.is_deleted = false`,
         [huertoId]
       );
+      const colaboradores = result2.rows;
 
       // 4. Verificar si algún colaborador está conectado
       for (const colaborador of colaboradores) {
@@ -655,9 +640,9 @@ class IrrigationAlertService {
    */
   async createNotification(userId, alertId, tipo, mensaje) {
     try {
-      await db.execute(
+      await db.query(
         `INSERT INTO notificaciones_alertas (usuario_id, alerta_id, tipo, mensaje) 
-         VALUES (?, ?, ?, ?)`,
+         VALUES ($1, $2, $3, $4)`,
         [userId, alertId, tipo, mensaje]
       );
     } catch (error) {
@@ -672,10 +657,11 @@ class IrrigationAlertService {
   async notifyGardenResidents(alertId, huertoId, huertoNombre, descripcion, creadoPor) {
     try {
       // 1. Obtener el propietario del huerto (siempre recibe notificación)
-      const [huertoInfo] = await db.execute(
-        'SELECT usuario_creador FROM huertos WHERE id = ?',
+      const result = await db.query(
+        'SELECT usuario_creador FROM huertos WHERE id = $1',
         [huertoId]
       );
+      const huertoInfo = result.rows;
 
       if (huertoInfo.length > 0) {
         const propietarioId = huertoInfo[0].usuario_creador;
@@ -702,13 +688,14 @@ class IrrigationAlertService {
       }
 
       // 2. Obtener colaboradores del huerto (residentes con permisos otorgados por el propietario)
-      const [colaboradores] = await db.execute(
+      const result2 = await db.query(
         `SELECT uh.usuario_id, u.nombre
          FROM usuario_huerto uh
          JOIN usuarios u ON uh.usuario_id = u.id
-         WHERE uh.huerto_id = ? AND uh.rol = 'colaborador' AND uh.is_deleted = 0 AND u.is_deleted = 0`,
+         WHERE uh.huerto_id = $1 AND uh.rol = 'colaborador' AND uh.is_deleted = false AND u.is_deleted = false`,
         [huertoId]
       );
+      const colaboradores = result2.rows;
 
       console.log(`📢 Encontrados ${colaboradores.length} colaboradores en el huerto ${huertoNombre}`);
 
@@ -750,10 +737,11 @@ class IrrigationAlertService {
   async notifyAdminsAndTechnicians(alertId, huertoNombre, creadoPor, creadoPorId) {
     try {
       // Obtener la ubicación del usuario que creó la alerta
-      const [creatorLocation] = await db.execute(
-        'SELECT ubicacion_id FROM usuarios WHERE id = ?',
+      const result = await db.query(
+        'SELECT ubicacion_id FROM usuarios WHERE id = $1',
         [creadoPorId]
       );
+      const creatorLocation = result.rows;
 
       if (!creatorLocation.length || !creatorLocation[0].ubicacion_id) {
         console.log('❌ No se pudo obtener la ubicación del creador de la alerta');
@@ -763,10 +751,11 @@ class IrrigationAlertService {
       const condominioId = creatorLocation[0].ubicacion_id;
 
       // Obtener administradores y técnicos del mismo condominio
-      const [users] = await db.execute(
-        'SELECT id, nombre FROM usuarios WHERE rol IN (?, ?) AND ubicacion_id = ?',
+      const result2 = await db.query(
+        'SELECT id, nombre FROM usuarios WHERE rol IN ($1, $2) AND ubicacion_id = $3',
         ['administrador', 'tecnico', condominioId]
       );
+      const users = result2.rows;
 
       const message = `Nueva alerta de riego creada para el huerto: ${huertoNombre}`;
 
@@ -800,13 +789,14 @@ class IrrigationAlertService {
   async notifyAlertCompletion(alertId, huertoId, huertoNombre, descripcion, completadoPor) {
     try {
       // 1. Obtener el propietario del huerto
-      const [huertoInfo] = await db.execute(
+      const result = await db.query(
         `SELECT h.usuario_creador, u.nombre as propietario_nombre
          FROM huertos h
          JOIN usuarios u ON h.usuario_creador = u.id
-         WHERE h.id = ?`,
+         WHERE h.id = $1`,
         [huertoId]
       );
+      const huertoInfo = result.rows;
 
       if (huertoInfo.length === 0) {
         console.log('❌ Huerto no encontrado para notificación de completado');
@@ -817,13 +807,14 @@ class IrrigationAlertService {
       const propietarioNombre = huertoInfo[0].propietario_nombre;
 
       // 2. Obtener colaboradores del huerto
-      const [colaboradores] = await db.execute(
+      const result2 = await db.query(
         `SELECT uh.usuario_id, u.nombre
          FROM usuario_huerto uh
          JOIN usuarios u ON uh.usuario_id = u.id
-         WHERE uh.huerto_id = ? AND uh.rol = 'colaborador' AND uh.is_deleted = 0 AND u.is_deleted = 0`,
+         WHERE uh.huerto_id = $1 AND uh.rol = 'colaborador' AND uh.is_deleted = false AND u.is_deleted = false`,
         [huertoId]
       );
+      const colaboradores = result2.rows;
 
       // 3. Determinar quién está conectado y quién no
       const isPropietarioOnline = this.onlineUsers.has(propietarioId);
@@ -960,22 +951,23 @@ class IrrigationAlertService {
         SELECT uc.usuario_id, uc.socket_id, uc.fecha_conexion,
                u.nombre, u.rol, u.email, u.ubicacion_id
         FROM usuarios_conectados uc
-        JOIN usuarios u ON uc.usuario_id COLLATE utf8mb4_unicode_ci = u.id COLLATE utf8mb4_unicode_ci
-        WHERE uc.fecha_conexion >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+        JOIN usuarios u ON uc.usuario_id = u.id
+        WHERE uc.fecha_conexion >= NOW() - INTERVAL '1 HOUR'
       `;
       
       const params = [];
       
       // Agregar filtro por condominio si se proporciona
       if (userLocationId) {
-        query += ` AND u.ubicacion_id = ?`;
+        query += ` AND u.ubicacion_id = $${params.length + 1}`;
         params.push(userLocationId);
       }
       
       query += ` ORDER BY uc.fecha_conexion DESC`;
       
       // Obtener información de usuarios conectados desde la base de datos
-      const [users] = await db.execute(query, params);
+      const result = await db.query(query, params);
+      const users = result.rows;
 
       // Agregar información adicional de cada usuario
       for (const user of users) {

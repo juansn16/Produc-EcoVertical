@@ -1,4 +1,4 @@
-import apiService from './apiService.js';
+import api from './apiService.js';
 
 const notificationService = {
   // Obtener notificaciones del usuario
@@ -10,7 +10,7 @@ const notificationService = {
         ...(soloNoLeidas && { solo_no_leidas: 'true' })
       });
       
-      const response = await apiService.get(`/notifications?${params}`);
+      const response = await api.get(`/notifications?${params}`);
       return response.data;
     } catch (error) {
       console.error('Error al obtener notificaciones:', error);
@@ -21,7 +21,7 @@ const notificationService = {
   // Obtener contador de notificaciones no leídas
   async getUnreadCount() {
     try {
-      const response = await apiService.get('/notifications/unread-count');
+      const response = await api.get('/notifications/unread-count');
       return response.data;
     } catch (error) {
       console.error('Error al obtener contador de notificaciones:', error);
@@ -32,7 +32,7 @@ const notificationService = {
   // Marcar notificación como leída
   async markAsRead(notificationId) {
     try {
-      const response = await apiService.patch(`/notifications/${notificationId}/read`);
+      const response = await api.patch(`/notifications/${notificationId}/read`);
       return response.data;
     } catch (error) {
       console.error('Error al marcar notificación como leída:', error);
@@ -43,7 +43,7 @@ const notificationService = {
   // Marcar todas las notificaciones como leídas
   async markAllAsRead() {
     try {
-      const response = await apiService.patch('/notifications/mark-all-read');
+      const response = await api.patch('/notifications/mark-all-read');
       return response.data;
     } catch (error) {
       console.error('Error al marcar todas las notificaciones como leídas:', error);
@@ -54,7 +54,7 @@ const notificationService = {
   // Eliminar notificación
   async deleteNotification(notificationId) {
     try {
-      const response = await apiService.delete(`/notifications/${notificationId}`);
+      const response = await api.delete(`/notifications/${notificationId}`);
       return response.data;
     } catch (error) {
       console.error('Error al eliminar notificación:', error);

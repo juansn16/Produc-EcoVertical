@@ -1,6 +1,7 @@
 import db from '../config/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import { createNotification } from './notificationController.js';
+import { AlertQueries } from '../utils/queries/index.js';
 
 // Crear nueva alerta (solo para alertas generales, NO de riego)
 export const createAlert = async (req, res) => {
@@ -29,21 +30,16 @@ export const createAlert = async (req, res) => {
     }
     
     // Verificar que el huerto existe y obtener su información
-    const [huertoResult] = await db.execute(`
-      SELECT h.*, u.nombre as ubicacion_nombre
-      FROM huertos h
-      LEFT JOIN ubicaciones u ON h.ubicacion_id = u.id
-      WHERE h.id = ? AND h.is_deleted = 0
-    `, [huerto_id]);
+    const huertoResult = await db.query(AlertQueries.getGardenInfo, [huerto_id]);
     
-    if (huertoResult.length === 0) {
+    if (huertoResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
       });
     }
 
-    const huerto = huertoResult[0];
+    const huerto = huertoResult.rows[0];
     
     // Verificar permisos según el tipo de huerto
     if (huerto.tipo === 'publico') {
@@ -56,12 +52,9 @@ export const createAlert = async (req, res) => {
       }
     } else if (huerto.tipo === 'privado') {
       // Huertos privados: solo el propietario puede crear alertas
-      const [userRoleResult] = await db.execute(`
-        SELECT rol FROM usuario_huerto 
-        WHERE usuario_id = ? AND huerto_id = ? AND is_deleted = 0
-      `, [userId, huerto_id]);
+      const userRoleResult = await db.query(AlertQueries.getUserRoleInGarden, [userId, huerto_id]);
       
-      const isOwner = userRoleResult.length > 0 && userRoleResult[0].rol === 'propietario';
+      const isOwner = userRoleResult.rows.length > 0 && userRoleResult.rows[0].rol === 'propietario';
       
       if (!isOwner && userRole !== 'administrador') {
         return res.status(403).json({
@@ -74,30 +67,23 @@ export const createAlert = async (req, res) => {
     // Crear la alerta
     const alertId = uuidv4();
     
-    await db.execute(`
-      INSERT INTO alertas (id, titulo, descripcion, tipo, prioridad, huerto_id, usuario_creador, fecha_programada, hora_programada, fecha_vencimiento, esta_activa, notas)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
-    `, [alertId, titulo, descripcion, tipo, prioridad, huerto_id, userId, fecha_programada, hora_programada || null, fecha_vencimiento || null, notas || null]);
+    await db.query(AlertQueries.create, [
+      alertId, titulo, descripcion, tipo, prioridad, huerto_id, userId, 
+      fecha_programada, hora_programada || null, fecha_vencimiento || null, 
+      true, notas || null
+    ]);
     
     // Determinar usuarios a notificar según el tipo de huerto
     let usuariosANotificar = [];
     
     if (huerto.tipo === 'publico') {
       // Huertos públicos: notificar a todos los usuarios del huerto
-      const [usuariosResult] = await db.execute(`
-        SELECT uh.usuario_id 
-        FROM usuario_huerto uh
-        WHERE uh.huerto_id = ? AND uh.is_deleted = 0
-      `, [huerto_id]);
-      usuariosANotificar = usuariosResult.map(u => u.usuario_id);
+      const usuariosResult = await db.query(AlertQueries.getUsersInPublicGarden, [huerto_id]);
+      usuariosANotificar = usuariosResult.rows.map(u => u.usuario_id);
     } else if (huerto.tipo === 'privado') {
       // Huertos privados: notificar solo al propietario
-      const [propietarioResult] = await db.execute(`
-        SELECT uh.usuario_id 
-        FROM usuario_huerto uh
-        WHERE uh.huerto_id = ? AND uh.rol = 'propietario' AND uh.is_deleted = 0
-      `, [huerto_id]);
-      usuariosANotificar = propietarioResult.map(u => u.usuario_id);
+      const propietarioResult = await db.query(AlertQueries.getOwnerOfPrivateGarden, [huerto_id]);
+      usuariosANotificar = propietarioResult.rows.map(u => u.usuario_id);
     }
     
     // Crear notificaciones para los usuarios
@@ -145,27 +131,11 @@ export const getUpcomingAlerts = async (req, res) => {
     const { limit = 10, offset = 0 } = req.query;
     const userId = req.user.id;
     
-    const [alerts] = await db.execute(`
-      SELECT a.*, h.nombre as huerto_nombre, u.nombre as ubicacion_nombre
-      FROM alertas a
-      LEFT JOIN huertos h ON a.huerto_id = h.id
-      LEFT JOIN ubicaciones u ON h.ubicacion_id = u.id
-      WHERE a.esta_activa = 1 
-        AND a.is_deleted = 0
-        AND a.tipo != 'riego'
-        AND (a.fecha_programada IS NULL OR a.fecha_programada >= CURDATE())
-        AND h.id IN (
-          SELECT uh.huerto_id 
-          FROM usuario_huerto uh 
-          WHERE uh.usuario_id = ? AND uh.is_deleted = 0
-        )
-      ORDER BY a.fecha_programada ASC, a.created_at DESC
-      LIMIT ? OFFSET ?
-    `, [userId, parseInt(limit), parseInt(offset)]);
+    const alerts = await db.query(AlertQueries.getUpcomingAlerts, [userId, parseInt(limit), parseInt(offset)]);
     
     res.json({
       success: true,
-      data: alerts
+      data: alerts.rows
     });
   } catch (error) {
     console.error('Error al obtener próximas alertas:', error);
@@ -183,27 +153,16 @@ export const getGardenAlerts = async (req, res) => {
     const { gardenId } = req.params;
     const { limit = 10, offset = 0, solo_activas = false } = req.query;
     
-    let query = `
-      SELECT a.*, h.nombre as huerto_nombre, u.nombre as ubicacion_nombre
-      FROM alertas a
-      LEFT JOIN huertos h ON a.huerto_id = h.id
-      LEFT JOIN ubicaciones u ON h.ubicacion_id = u.id
-      WHERE a.huerto_id = ? 
-        AND a.is_deleted = 0
-        AND a.tipo != 'riego'
-    `;
-    
-    if (solo_activas === 'true') {
-      query += ' AND a.esta_activa = 1';
-    }
-    
-    query += ' ORDER BY a.created_at DESC LIMIT ? OFFSET ?';
-    
-    const [alerts] = await db.execute(query, [gardenId, parseInt(limit), parseInt(offset)]);
+    const alerts = await db.query(AlertQueries.getGardenAlerts, [
+      gardenId, 
+      solo_activas === 'true' ? true : null, 
+      parseInt(limit), 
+      parseInt(offset)
+    ]);
     
     res.json({
       success: true,
-      data: alerts
+      data: alerts.rows
     });
   } catch (error) {
     console.error('Error al obtener alertas del jardín:', error);
@@ -221,11 +180,7 @@ export const updateAlertStatus = async (req, res) => {
     const { alertId } = req.params;
     const { esta_activa } = req.body;
     
-    await db.execute(`
-      UPDATE alertas 
-      SET esta_activa = ?
-      WHERE id = ? AND is_deleted = 0 AND tipo != 'riego'
-    `, [esta_activa, alertId]);
+    await db.query(AlertQueries.updateStatus, [esta_activa, alertId]);
     
     res.json({
       success: true,
@@ -250,21 +205,16 @@ export const updateAlert = async (req, res) => {
     const userRole = req.user.role;
     
     // Verificar que la alerta existe y obtener información
-    const [alertResult] = await db.execute(`
-      SELECT a.*, h.tipo as huerto_tipo
-      FROM alertas a
-      LEFT JOIN huertos h ON a.huerto_id = h.id
-      WHERE a.id = ? AND a.is_deleted = 0 AND a.tipo != 'riego'
-    `, [alertId]);
+    const alertResult = await db.query(AlertQueries.getByIdWithGarden, [alertId]);
     
-    if (alertResult.length === 0) {
+    if (alertResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Alerta no encontrada'
       });
     }
     
-    const alert = alertResult[0];
+    const alert = alertResult.rows[0];
     
     // Verificar permisos
     if (alert.usuario_creador !== userId && userRole !== 'administrador') {
@@ -274,12 +224,10 @@ export const updateAlert = async (req, res) => {
       });
     }
     
-    await db.execute(`
-      UPDATE alertas 
-      SET titulo = ?, descripcion = ?, prioridad = ?, fecha_programada = ?, 
-          hora_programada = ?, fecha_vencimiento = ?, notas = ?
-      WHERE id = ?
-    `, [titulo, descripcion, prioridad, fecha_programada, hora_programada, fecha_vencimiento, notas, alertId]);
+    await db.query(AlertQueries.update, [
+      titulo, descripcion, prioridad, fecha_programada, 
+      hora_programada, fecha_vencimiento, notas, alertId
+    ]);
     
     res.json({
       success: true,
@@ -303,19 +251,16 @@ export const deleteAlert = async (req, res) => {
     const userRole = req.user.role;
     
     // Verificar que la alerta existe
-    const [alertResult] = await db.execute(`
-      SELECT usuario_creador FROM alertas 
-      WHERE id = ? AND is_deleted = 0 AND tipo != 'riego'
-    `, [alertId]);
+    const alertResult = await db.query(AlertQueries.getById, [alertId]);
     
-    if (alertResult.length === 0) {
+    if (alertResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Alerta no encontrada'
       });
     }
     
-    const alert = alertResult[0];
+    const alert = alertResult.rows[0];
     
     // Verificar permisos
     if (alert.usuario_creador !== userId && userRole !== 'administrador') {
@@ -326,11 +271,7 @@ export const deleteAlert = async (req, res) => {
     }
     
     // Soft delete
-    await db.execute(`
-      UPDATE alertas 
-      SET is_deleted = 1
-      WHERE id = ?
-    `, [alertId]);
+    await db.query(AlertQueries.softDelete, [alertId]);
     
     res.json({
       success: true,
@@ -352,31 +293,22 @@ export const triggerAlertNotification = async (req, res) => {
     const { alertId } = req.params;
     
     // Obtener información de la alerta
-    const [alertResult] = await db.execute(`
-      SELECT a.*, h.nombre as huerto_nombre
-      FROM alertas a
-      LEFT JOIN huertos h ON a.huerto_id = h.id
-      WHERE a.id = ? AND a.is_deleted = 0 AND a.tipo != 'riego'
-    `, [alertId]);
+    const alertResult = await db.query(AlertQueries.getAlertForNotification, [alertId]);
     
-    if (alertResult.length === 0) {
+    if (alertResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Alerta no encontrada'
       });
     }
     
-    const alert = alertResult[0];
+    const alert = alertResult.rows[0];
     
     // Obtener usuarios del huerto
-    const [usuariosResult] = await db.execute(`
-      SELECT uh.usuario_id 
-      FROM usuario_huerto uh
-      WHERE uh.huerto_id = ? AND uh.is_deleted = 0
-    `, [alert.huerto_id]);
+    const usuariosResult = await db.query(AlertQueries.getGardenUsers, [alert.huerto_id]);
     
     // Crear notificaciones
-    for (const usuario of usuariosResult) {
+    for (const usuario of usuariosResult.rows) {
       await createNotification({
         titulo: alert.titulo,
         mensaje: alert.descripcion,

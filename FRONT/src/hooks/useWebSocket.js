@@ -5,12 +5,19 @@ const useWebSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState(null);
   const [error, setError] = useState(null);
+  const [isDisabled, setIsDisabled] = useState(false);
   const socketRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
+  const disableTimeoutRef = useRef(null);
 
   const connect = useCallback(() => {
+    if (isDisabled) {
+      console.log('🔌 WebSocket temporalmente deshabilitado');
+      return;
+    }
+
     if (socketRef.current?.connected) {
       console.log('🔌 WebSocket ya está conectado');
       return;
@@ -21,14 +28,18 @@ const useWebSocket = () => {
       const token = localStorage.getItem('token');
       console.log('🔍 Token encontrado:', token ? 'Sí' : 'No');
       
-      // Crear conexión WebSocket (configuración simplificada)
+      // Crear conexión WebSocket (configuración robusta)
       const connectionOptions = {
         transports: ['polling', 'websocket'],
-        timeout: 20000,
+        timeout: 60000, // 60 segundos para conexión inicial
         forceNew: true,
         reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000
+        reconnectionAttempts: 5, // Reducir intentos para evitar spam
+        reconnectionDelay: 5000, // 5 segundos entre intentos
+        reconnectionDelayMax: 20000, // Máximo 20 segundos
+        autoConnect: true,
+        upgrade: true,
+        rememberUpgrade: false
       };
       
       // Solo agregar auth si hay token
@@ -80,9 +91,27 @@ const useWebSocket = () => {
       });
 
       socketRef.current.on('connect_error', (err) => {
-        console.error('❌ Error de conexión WebSocket:', err);
+        console.warn('⚠️ Error de conexión WebSocket:', err.message);
         setError(err.message);
         setIsConnected(false);
+        
+        // Deshabilitar temporalmente después de muchos intentos fallidos
+        if (reconnectAttempts.current >= maxReconnectAttempts) {
+          console.log('🔌 Deshabilitando WebSocket temporalmente debido a múltiples fallos');
+          setIsDisabled(true);
+          
+          // Rehabilitar después de 5 minutos
+          disableTimeoutRef.current = setTimeout(() => {
+            console.log('🔌 Rehabilitando WebSocket');
+            setIsDisabled(false);
+            reconnectAttempts.current = 0;
+          }, 300000); // 5 minutos
+        }
+        
+        // Solo mostrar error si no es un timeout de reconexión
+        if (!err.message.includes('timeout') || reconnectAttempts.current === 0) {
+          console.error('❌ Error de conexión WebSocket:', err);
+        }
       });
 
       // Eventos específicos del sistema de alertas
@@ -169,6 +198,11 @@ const useWebSocket = () => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
+    }
+
+    if (disableTimeoutRef.current) {
+      clearTimeout(disableTimeoutRef.current);
+      disableTimeoutRef.current = null;
     }
 
     if (socketRef.current) {
@@ -270,6 +304,9 @@ const useWebSocket = () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
+      if (disableTimeoutRef.current) {
+        clearTimeout(disableTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -277,6 +314,7 @@ const useWebSocket = () => {
     isConnected,
     lastMessage,
     error,
+    isDisabled,
     connect,
     disconnect,
     sendMessage,

@@ -7,7 +7,7 @@ console.log('API_BASE_URL:', API_BASE_URL);
 // Crear instancia de axios
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000, // Aumentar timeout a 30 segundos
   headers: {
     'Content-Type': 'application/json',
   },
@@ -69,8 +69,11 @@ api.interceptors.response.use(
             refreshToken
           });
           
-          const { token: newToken } = response.data;
+          const { accessToken: newToken, refreshToken: newRefreshToken } = response.data;
           localStorage.setItem('token', newToken);
+          if (newRefreshToken) {
+            localStorage.setItem('refreshToken', newRefreshToken);
+          }
           console.log('✅ Token renovado exitosamente');
           
           // Reintentar la petición original con el nuevo token

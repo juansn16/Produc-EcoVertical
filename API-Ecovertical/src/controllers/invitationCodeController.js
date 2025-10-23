@@ -1,5 +1,6 @@
 import db from '../config/db.js';
 import { v4 as uuidv4 } from 'uuid';
+import { InvitationCodeQueries } from '../utils/queries/index.js';
 
 // Helper para generar códigos únicos de 6 caracteres
 const generateInvitationCode = () => {
@@ -13,11 +14,8 @@ const generateInvitationCode = () => {
 
 // Verificar si un código ya existe
 const isCodeUnique = async (code) => {
-  const [rows] = await db.query(
-    'SELECT id FROM codigos_invitacion WHERE codigo = ? AND is_deleted = 0',
-    [code]
-  );
-  return rows.length === 0;
+  const result = await db.query(InvitationCodeQueries.isCodeUnique, [code]);
+  return result.rows.length === 0;
 };
 
 // Generar código único
@@ -55,19 +53,16 @@ export const createInvitationCode = async (req, res, next) => {
     }
 
     // Obtener ubicación del administrador
-    const [adminLocation] = await db.query(
-      'SELECT ubicacion_id FROM usuarios WHERE id = ? AND is_deleted = 0',
-      [adminId]
-    );
+    const adminLocationResult = await db.query(InvitationCodeQueries.getAdminLocation, [adminId]);
 
-    if (!adminLocation.length) {
+    if (!adminLocationResult.rows.length) {
       return res.status(404).json({
         success: false,
         message: 'Administrador no encontrado'
       });
     }
 
-    const ubicacionId = adminLocation[0].ubicacion_id;
+    const ubicacionId = adminLocationResult.rows[0].ubicacion_id;
 
     if (!ubicacionId) {
       return res.status(400).json({
@@ -77,10 +72,7 @@ export const createInvitationCode = async (req, res, next) => {
     }
 
     // Desactivar código anterior si existe
-    await db.query(
-      'UPDATE codigos_invitacion SET esta_activo = 0, updated_at = NOW() WHERE administrador_id = ? AND esta_activo = 1',
-      [adminId]
-    );
+    await db.query(InvitationCodeQueries.deactivatePreviousCode, [adminId]);
 
     // Generar nuevo código único
     const codigo = await generateUniqueCode();
@@ -88,10 +80,7 @@ export const createInvitationCode = async (req, res, next) => {
     fechaExpiracion.setDate(fechaExpiracion.getDate() + expiracion_dias);
 
     // Crear nuevo código
-    const [result] = await db.query(
-      `INSERT INTO codigos_invitacion 
-       (id, codigo, administrador_id, ubicacion_id, esta_activo, fecha_expiracion) 
-       VALUES (?, ?, ?, ?, 1, ?)`,
+    const result = await db.query(InvitationCodeQueries.createInvitationCode, 
       [uuidv4(), codigo, adminId, ubicacionId, fechaExpiracion]
     );
 
@@ -99,7 +88,7 @@ export const createInvitationCode = async (req, res, next) => {
       success: true,
       message: 'Código de invitación generado exitosamente',
       data: {
-        id: result.insertId,
+        id: result.rows[0].id,
         codigo,
         fecha_expiracion: fechaExpiracion,
         expiracion_dias
@@ -125,16 +114,9 @@ export const getCurrentInvitationCode = async (req, res, next) => {
       });
     }
 
-    const [rows] = await db.query(
-      `SELECT id, codigo, fecha_creacion, fecha_expiracion, esta_activo, usado_por, fecha_uso
-       FROM codigos_invitacion 
-       WHERE administrador_id = ? AND esta_activo = 1 AND is_deleted = 0
-       ORDER BY fecha_creacion DESC 
-       LIMIT 1`,
-      [adminId]
-    );
+    const rowsResult = await db.query(InvitationCodeQueries.getCurrentInvitationCode, [adminId]);
 
-    if (!rows.length) {
+    if (!rowsResult.rows.length) {
       return res.json({
         success: true,
         message: 'No hay código de invitación activo',
@@ -142,7 +124,7 @@ export const getCurrentInvitationCode = async (req, res, next) => {
       });
     }
 
-    const codigo = rows[0];
+    const codigo = rowsResult.rows[0];
     const ahora = new Date();
     const estaExpirado = codigo.fecha_expiracion && new Date(codigo.fecha_expiracion) < ahora;
 
@@ -178,12 +160,9 @@ export const deleteInvitationCode = async (req, res, next) => {
     }
 
     // Verificar que el código pertenece al administrador
-    const [rows] = await db.query(
-      'SELECT id FROM codigos_invitacion WHERE id = ? AND administrador_id = ? AND is_deleted = 0',
-      [id, adminId]
-    );
+    const rowsResult = await db.query(InvitationCodeQueries.verifyCodeOwnership, [id, adminId]);
 
-    if (!rows.length) {
+    if (!rowsResult.rows.length) {
       return res.status(404).json({
         success: false,
         message: 'Código de invitación no encontrado'
@@ -191,10 +170,7 @@ export const deleteInvitationCode = async (req, res, next) => {
     }
 
     // Eliminar código (soft delete)
-    await db.query(
-      'UPDATE codigos_invitacion SET is_deleted = 1, updated_at = NOW() WHERE id = ?',
-      [id]
-    );
+    await db.query(InvitationCodeQueries.deleteInvitationCode, [id]);
 
     res.json({
       success: true,
@@ -219,25 +195,16 @@ export const validateInvitationCode = async (req, res, next) => {
       });
     }
 
-    const [rows] = await db.query(
-      `SELECT ci.id, ci.codigo, ci.administrador_id, ci.ubicacion_id, ci.fecha_expiracion,
-              u.nombre as admin_nombre, u.email as admin_email,
-              ub.nombre as ubicacion_nombre, ub.ciudad, ub.estado
-       FROM codigos_invitacion ci
-       JOIN usuarios u ON ci.administrador_id = u.id
-       JOIN ubicaciones ub ON ci.ubicacion_id = ub.id
-       WHERE ci.codigo = ? AND ci.esta_activo = 1 AND ci.is_deleted = 0`,
-      [codigo]
-    );
+    const rowsResult = await db.query(InvitationCodeQueries.validateInvitationCode, [codigo]);
 
-    if (!rows.length) {
+    if (!rowsResult.rows.length) {
       return res.status(404).json({
         success: false,
         message: 'Código de invitación no válido o no encontrado'
       });
     }
 
-    const codigoData = rows[0];
+    const codigoData = rowsResult.rows[0];
     const ahora = new Date();
     const estaExpirado = codigoData.fecha_expiracion && new Date(codigoData.fecha_expiracion) < ahora;
 
@@ -291,31 +258,20 @@ export const getInvitationCodeHistory = async (req, res, next) => {
 
     const offset = (page - 1) * limit;
 
-    const [rows] = await db.query(
-      `SELECT ci.id, ci.codigo, ci.fecha_creacion, ci.fecha_expiracion, ci.esta_activo,
-              ci.usado_por, ci.fecha_uso,
-              u.nombre as usuario_nombre, u.email as usuario_email
-       FROM codigos_invitacion ci
-       LEFT JOIN usuarios u ON ci.usado_por = u.id
-       WHERE ci.administrador_id = ? AND ci.is_deleted = 0
-       ORDER BY ci.fecha_creacion DESC
-       LIMIT ? OFFSET ?`,
+    const rowsResult = await db.query(InvitationCodeQueries.getInvitationCodeHistory, 
       [adminId, parseInt(limit), parseInt(offset)]
     );
 
     // Contar total de registros
-    const [countResult] = await db.query(
-      'SELECT COUNT(*) as total FROM codigos_invitacion WHERE administrador_id = ? AND is_deleted = 0',
-      [adminId]
-    );
+    const countResult = await db.query(InvitationCodeQueries.countInvitationCodes, [adminId]);
 
-    const total = countResult[0].total;
+    const total = countResult.rows[0].total;
     const totalPages = Math.ceil(total / limit);
 
     res.json({
       success: true,
       data: {
-        codigos: rows,
+        codigos: rowsResult.rows,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),

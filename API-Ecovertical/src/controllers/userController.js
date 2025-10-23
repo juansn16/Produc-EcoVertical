@@ -1,5 +1,6 @@
 import bcryptjs from "bcryptjs";
-import db from "../config/db.js"; // conexión mysql2 pool
+import db from "../config/db.js"; // conexión PostgreSQL pool
+import { UserQueries } from "../utils/queries/index.js";
 
 // Helper para no enviar contraseña
 const safeUser = (u) => {
@@ -10,9 +11,9 @@ const safeUser = (u) => {
 
 export const getMyProfile = async (req, res, next) => {
   try {
-    const [rows] = await db.query("SELECT id, nombre, email, rol, telefono, ubicacion_id, imagen_url FROM usuarios WHERE id = ? AND is_deleted = 0", [req.user.id]);
-    if (!rows.length) return res.status(404).json({ message: "Usuario no encontrado" });
-    res.json({ user: rows[0] });
+    const result = await db.query(UserQueries.getMyProfile, [req.user.id]);
+    if (!result.rows.length) return res.status(404).json({ message: "Usuario no encontrado" });
+    res.json({ user: result.rows[0] });
   } catch (err) {
     next(err);
   }
@@ -24,19 +25,16 @@ export const updateMyProfile = async (req, res, next) => {
 
     // Verificar si el email ya existe para otro usuario
     if (email) {
-      const [exists] = await db.query("SELECT id FROM usuarios WHERE email = ? AND id <> ? AND is_deleted = 0", [email, req.user.id]);
-      if (exists.length) return res.status(409).json({ message: "El email ya está en uso" });
+      const existsResult = await db.query(UserQueries.checkEmailExists, [email, req.user.id]);
+      if (existsResult.rows.length) return res.status(409).json({ message: "El email ya está en uso" });
     }
 
     // Actualizar todos los campos incluyendo imagen_url
-    await db.query(
-      "UPDATE usuarios SET nombre = COALESCE(?, nombre), email = COALESCE(?, email), telefono = COALESCE(?, telefono), imagen_url = COALESCE(?, imagen_url) WHERE id = ? AND is_deleted = 0",
-      [nombre, email, telefono, imagen_url, req.user.id]
-    );
+    await db.query(UserQueries.updateMyProfile, [nombre, email, telefono, imagen_url, req.user.id]);
 
     // Obtener usuario actualizado con imagen_url
-    const [updated] = await db.query("SELECT id, nombre, email, rol, telefono, ubicacion_id, imagen_url FROM usuarios WHERE id = ? AND is_deleted = 0", [req.user.id]);
-    res.json({ message: "Perfil actualizado", user: updated[0] });
+    const updatedResult = await db.query(UserQueries.getUpdatedProfile, [req.user.id]);
+    res.json({ message: "Perfil actualizado", user: updatedResult.rows[0] });
   } catch (err) {
     next(err);
   }
@@ -46,14 +44,14 @@ export const changeMyPassword = async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
-    const [rows] = await db.query("SELECT password FROM usuarios WHERE id = ? AND is_deleted = 0", [req.user.id]);
-    if (!rows.length) return res.status(404).json({ message: "Usuario no encontrado" });
+    const result = await db.query(UserQueries.getUserPassword, [req.user.id]);
+    if (!result.rows.length) return res.status(404).json({ message: "Usuario no encontrado" });
 
-    const ok = await bcryptjs.compare(currentPassword, rows[0].password);
+    const ok = await bcryptjs.compare(currentPassword, result.rows[0].password);
     if (!ok) return res.status(400).json({ message: "Contraseña actual incorrecta" });
 
     const hashed = await bcryptjs.hash(newPassword, 10);
-    await db.query("UPDATE usuarios SET password = ? WHERE id = ? AND is_deleted = 0", [hashed, req.user.id]);
+    await db.query(UserQueries.updatePassword, [hashed, req.user.id]);
 
     res.json({ message: "Contraseña actualizada" });
   } catch (err) {
@@ -64,16 +62,13 @@ export const changeMyPassword = async (req, res, next) => {
 export const getUsers = async (req, res, next) => {
   try {
     const { search = "" } = req.query;
-    let query = "SELECT id, name, email, role, status, avatar FROM users";
-    let params = [];
+    
+    // Construir parámetros para la búsqueda
+    const searchPattern = `%${search}%`;
+    const params = [search, searchPattern, searchPattern];
 
-    if (search) {
-      query += " WHERE name LIKE ? OR email LIKE ?";
-      params.push(`%${search}%`, `%${search}%`);
-    }
-
-    const [rows] = await db.query(query, params);
-    res.json({ users: rows });
+    const result = await db.query(UserQueries.getUsers, params);
+    res.json({ users: result.rows });
   } catch (err) {
     next(err);
   }
@@ -81,12 +76,9 @@ export const getUsers = async (req, res, next) => {
 
 export const getUserById = async (req, res, next) => {
   try {
-    const [rows] = await db.query(
-      "SELECT id, name, email, role, status, avatar FROM users WHERE id = ?",
-      [req.params.id]
-    );
-    if (!rows.length) return res.status(404).json({ message: "Usuario no encontrado" });
-    res.json({ user: rows[0] });
+    const result = await db.query(UserQueries.getUserById, [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ message: "Usuario no encontrado" });
+    res.json({ user: result.rows[0] });
   } catch (err) {
     next(err);
   }
@@ -97,22 +89,19 @@ export const updateUserById = async (req, res, next) => {
     const { name, email, role, status } = req.body;
 
     // Verificar si existe
-    const [exists] = await db.query("SELECT id FROM users WHERE id = ?", [req.params.id]);
-    if (!exists.length) return res.status(404).json({ message: "Usuario no encontrado" });
+    const existsResult = await db.query(UserQueries.checkUserExists, [req.params.id]);
+    if (!existsResult.rows.length) return res.status(404).json({ message: "Usuario no encontrado" });
 
     // Validar email único
     if (email) {
-      const [emailExists] = await db.query("SELECT id FROM users WHERE email = ? AND id <> ?", [email, req.params.id]);
-      if (emailExists.length) return res.status(409).json({ message: "El email ya está en uso" });
+      const emailExistsResult = await db.query(UserQueries.checkEmailExistsForUpdate, [email, req.params.id]);
+      if (emailExistsResult.rows.length) return res.status(409).json({ message: "El email ya está en uso" });
     }
 
-    await db.query(
-      "UPDATE users SET name = COALESCE(?, name), email = COALESCE(?, email), role = COALESCE(?, role), status = COALESCE(?, status) WHERE id = ?",
-      [name, email, role, status, req.params.id]
-    );
+    await db.query(UserQueries.updateUserById, [name, email, role, status, req.params.id]);
 
-    const [updated] = await db.query("SELECT id, name, email, role, status, avatar FROM users WHERE id = ?", [req.params.id]);
-    res.json({ message: "Usuario actualizado", user: updated[0] });
+    const updatedResult = await db.query(UserQueries.getUpdatedUserById, [req.params.id]);
+    res.json({ message: "Usuario actualizado", user: updatedResult.rows[0] });
   } catch (err) {
     next(err);
   }
@@ -120,10 +109,10 @@ export const updateUserById = async (req, res, next) => {
 
 export const deleteUserById = async (req, res, next) => {
   try {
-    const [exists] = await db.query("SELECT id FROM users WHERE id = ?", [req.params.id]);
-    if (!exists.length) return res.status(404).json({ message: "Usuario no encontrado" });
+    const existsResult = await db.query(UserQueries.checkUserExists, [req.params.id]);
+    if (!existsResult.rows.length) return res.status(404).json({ message: "Usuario no encontrado" });
 
-    await db.query("DELETE FROM users WHERE id = ?", [req.params.id]);
+    await db.query(UserQueries.deleteUserById, [req.params.id]);
     res.json({ message: "Usuario eliminado" });
   } catch (err) {
     next(err);
@@ -137,16 +126,13 @@ export const getCondominiumUsers = async (req, res, next) => {
     const { search = "" } = req.query;
 
     // Obtener la ubicación del administrador
-    const [adminLocation] = await db.query(
-      "SELECT ubicacion_id FROM usuarios WHERE id = ? AND is_deleted = 0",
-      [adminId]
-    );
+    const adminLocationResult = await db.query(UserQueries.getAdminLocation, [adminId]);
 
-    if (!adminLocation.length) {
+    if (!adminLocationResult.rows.length) {
       return res.status(404).json({ message: 'Administrador no encontrado' });
     }
 
-    const adminLocationId = adminLocation[0].ubicacion_id;
+    const adminLocationId = adminLocationResult.rows[0].ubicacion_id;
 
     if (!adminLocationId) {
       return res.status(400).json({ 
@@ -154,23 +140,12 @@ export const getCondominiumUsers = async (req, res, next) => {
       });
     }
 
-    // Buscar usuarios del mismo condominio
-    let query = `
-      SELECT u.id, u.nombre, u.cedula, u.telefono, u.email, u.rol, u.created_at
-      FROM usuarios u 
-      WHERE u.ubicacion_id = ? AND u.is_deleted = 0
-    `;
-    let params = [adminLocationId];
+    // Construir parámetros para la búsqueda
+    const searchPattern = `%${search}%`;
+    const params = [adminLocationId, search, searchPattern];
 
-    if (search) {
-      query += " AND (u.nombre LIKE ? OR u.email LIKE ? OR u.cedula LIKE ?)";
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
-    }
-
-    query += " ORDER BY u.nombre ASC";
-
-    const [rows] = await db.query(query, params);
-    res.json({ users: rows });
+    const result = await db.query(UserQueries.getCondominiumUsers, params);
+    res.json({ users: result.rows });
   } catch (err) {
     console.error('Error in getCondominiumUsers:', err);
     next(err);
@@ -198,20 +173,14 @@ export const assignTechnicianRole = async (req, res, next) => {
     }
 
     // Actualizar el rol del usuario
-    await db.query(
-      "UPDATE usuarios SET rol = 'tecnico' WHERE id = ?",
-      [targetUserId]
-    );
+    await db.query(UserQueries.assignTechnicianRole, [targetUserId]);
 
     // Obtener el usuario actualizado
-    const [updatedUser] = await db.query(
-      "SELECT id, nombre, email, rol FROM usuarios WHERE id = ?",
-      [targetUserId]
-    );
+    const updatedUserResult = await db.query(UserQueries.getUpdatedUserRole, [targetUserId]);
 
     res.json({ 
       message: 'Rol de técnico asignado exitosamente',
-      user: updatedUser[0]
+      user: updatedUserResult.rows[0]
     });
   } catch (err) {
     next(err);
@@ -232,20 +201,14 @@ export const removeTechnicianRole = async (req, res, next) => {
     }
 
     // Actualizar el rol del usuario a residente
-    await db.query(
-      "UPDATE usuarios SET rol = 'residente' WHERE id = ?",
-      [targetUserId]
-    );
+    await db.query(UserQueries.removeTechnicianRole, [targetUserId]);
 
     // Obtener el usuario actualizado
-    const [updatedUser] = await db.query(
-      "SELECT id, nombre, email, rol FROM usuarios WHERE id = ?",
-      [targetUserId]
-    );
+    const updatedUserResult = await db.query(UserQueries.getUpdatedUserRole, [targetUserId]);
 
     res.json({ 
       message: 'Rol de técnico removido exitosamente',
-      user: updatedUser[0]
+      user: updatedUserResult.rows[0]
     });
   } catch (err) {
     next(err);

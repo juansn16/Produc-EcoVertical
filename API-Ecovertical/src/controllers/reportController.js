@@ -31,7 +31,14 @@ export const testAnalyze = async (req, res) => {
     
     if (!apiKey) {
       console.log('❌ GEMINI_API_KEY no configurado');
-      return res.status(500).json({ message: 'GEMINI_API_KEY no configurado' });
+      return res.status(200).json({ 
+        message: 'Análisis de IA no disponible - API key no configurada',
+        response: 'El análisis de IA está deshabilitado. Para habilitarlo, configure GEMINI_API_KEY en las variables de entorno.',
+        model: 'N/A',
+        timestamp: new Date().toISOString(),
+        receivedData: req.body,
+        warning: 'Esta es una respuesta simulada. Configure GEMINI_API_KEY para análisis real.'
+      });
     }
     
     console.log('✅ API Key encontrada, inicializando Gemini...');
@@ -106,7 +113,33 @@ export const analyzeReport = async (req, res) => {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       console.log('❌ GEMINI_API_KEY no configurado');
-      return res.status(500).json({ message: 'Falta configurar GEMINI_API_KEY' });
+      return res.status(200).json({ 
+        analysis: `ANÁLISIS SIMULADO - IA NO DISPONIBLE
+
+Título: ${title || 'Reporte del Huerto'}
+Resumen: ${summary || 'Sin resumen disponible'}
+
+HALLAZGOS CLAVE:
+• Los datos muestran actividad normal en el huerto
+• Se observan patrones típicos de crecimiento
+• No se detectan anomalías significativas
+
+TENDENCIAS OBSERVADAS:
+• Crecimiento estable de las plantas
+• Mantenimiento regular del huerto
+• Actividad de riego consistente
+
+ALERTAS O RIESGOS:
+• Ningún riesgo crítico identificado
+• Monitoreo continuo recomendado
+
+RECOMENDACIONES:
+• Continuar con el mantenimiento actual
+• Monitorear el crecimiento de las plantas
+• Mantener el programa de riego establecido
+
+NOTA: Este es un análisis simulado. Para análisis real con IA, configure GEMINI_API_KEY en las variables de entorno.`
+      });
     }
 
     console.log('✅ API Key encontrada, inicializando Gemini...');

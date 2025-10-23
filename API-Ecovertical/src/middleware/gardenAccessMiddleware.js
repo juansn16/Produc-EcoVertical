@@ -16,21 +16,21 @@ export const verifyGardenAccess = async (req, res, next) => {
     const userRole = req.user.role;
 
     // Verificar que el huerto existe y obtener información del usuario
-    const [gardenResult] = await db.execute(`
+    const gardenResult = await db.query(`
       SELECT h.*, u.ubicacion_id as user_location_id, h.ubicacion_id as garden_location_id
       FROM huertos h
-      LEFT JOIN usuarios u ON u.id = ?
-      WHERE h.id = ? AND h.is_deleted = 0
+      LEFT JOIN usuarios u ON u.id = $1
+      WHERE h.id = $2 AND h.is_deleted = false
     `, [userId, gardenId]);
 
-    if (gardenResult.length === 0) {
+    if (gardenResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
       });
     }
 
-    const garden = gardenResult[0];
+    const garden = gardenResult.rows[0];
 
     // Si es huerto privado
     if (garden.tipo === 'privado') {
@@ -44,12 +44,12 @@ export const verifyGardenAccess = async (req, res, next) => {
       }
       // Verificar si el usuario es un residente asignado al huerto
       else {
-        const [assignmentResult] = await db.execute(
-          'SELECT * FROM usuario_huerto WHERE usuario_id = ? AND huerto_id = ? AND is_deleted = 0',
+        const assignmentResult = await db.query(
+          'SELECT * FROM usuario_huerto WHERE usuario_id = $1 AND huerto_id = $2 AND is_deleted = false',
           [userId, gardenId]
         );
 
-        if (assignmentResult.length > 0) {
+        if (assignmentResult.rows.length > 0) {
           console.log('✅ Acceso a huerto privado permitido - Usuario es residente asignado');
         } else {
           return res.status(403).json({
@@ -122,21 +122,21 @@ export const verifyGardenModificationPermissions = async (req, res, next) => {
     const userRole = req.user.role;
 
     // Verificar que el huerto existe
-    const [gardenResult] = await db.execute(`
+    const gardenResult = await db.query(`
       SELECT h.*, u.ubicacion_id as user_location_id
       FROM huertos h
-      LEFT JOIN usuarios u ON u.id = ?
-      WHERE h.id = ? AND h.is_deleted = 0
+      LEFT JOIN usuarios u ON u.id = $1
+      WHERE h.id = $2 AND h.is_deleted = false
     `, [userId, gardenId]);
 
-    if (gardenResult.length === 0) {
+    if (gardenResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
       });
     }
 
-    const garden = gardenResult[0];
+    const garden = gardenResult.rows[0];
 
     // Si es huerto privado
     if (garden.tipo === 'privado') {

@@ -12,19 +12,19 @@ export const verifyCommentAccess = async (req, res, next) => {
 
     // Si no hay huerto_id en los parámetros, intentar obtenerlo del comentario
     if (!huerto_id && req.params.commentId) {
-      const [commentResult] = await db.execute(
-        'SELECT huerto_id FROM comentarios WHERE id = ? AND is_deleted = 0',
+      const commentResult = await db.query(
+        'SELECT huerto_id FROM comentarios WHERE id = $1 AND is_deleted = false',
         [req.params.commentId]
       );
       
-      if (commentResult.length === 0) {
+      if (commentResult.rows.length === 0) {
         return res.status(404).json({
           success: false,
           message: 'Comentario no encontrado'
         });
       }
       
-      huerto_id = commentResult[0].huerto_id;
+      huerto_id = commentResult.rows[0].huerto_id;
     }
 
     if (!huerto_id) {
@@ -42,19 +42,19 @@ export const verifyCommentAccess = async (req, res, next) => {
     });
 
     // Verificar que el huerto existe
-    const [huertoResult] = await db.execute(
-      'SELECT * FROM huertos WHERE id = ? AND is_deleted = 0',
+    const huertoResult = await db.query(
+      'SELECT * FROM huertos WHERE id = $1 AND is_deleted = false',
       [huerto_id]
     );
 
-    if (huertoResult.length === 0) {
+    if (huertoResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
       });
     }
 
-    const huerto = huertoResult[0];
+    const huerto = huertoResult.rows[0];
 
     // ADMINISTRADOR: Acceso completo sin restricciones
     if (userRole === 'administrador') {
@@ -85,12 +85,12 @@ export const verifyCommentAccess = async (req, res, next) => {
     // RESIDENTE: Verificar asignación al huerto específico
     if (userRole === 'residente') {
       // Verificar si el residente está asignado a este huerto específico
-      const [userHuertoResult] = await db.execute(
-        'SELECT * FROM usuario_huerto WHERE usuario_id = ? AND huerto_id = ? AND is_deleted = 0',
+      const userHuertoResult = await db.query(
+        'SELECT * FROM usuario_huerto WHERE usuario_id = $1 AND huerto_id = $2 AND is_deleted = false',
         [userId, huerto_id]
       );
 
-      if (userHuertoResult.length > 0) {
+      if (userHuertoResult.rows.length > 0) {
         console.log('✅ Residente asignado - Acceso completo permitido');
         req.commentAccess = {
           canView: true,
@@ -221,19 +221,19 @@ export const verifyCommentOwnership = async (req, res, next) => {
 
     // Para residentes, verificar que es el autor del comentario
     if (userRole === 'residente') {
-      const [commentResult] = await db.execute(
-        'SELECT usuario_id FROM comentarios WHERE id = ? AND is_deleted = 0',
+      const commentResult = await db.query(
+        'SELECT usuario_id FROM comentarios WHERE id = $1 AND is_deleted = false',
         [commentId]
       );
 
-      if (commentResult.length === 0) {
+      if (commentResult.rows.length === 0) {
         return res.status(404).json({
           success: false,
           message: 'Comentario no encontrado'
         });
       }
 
-      if (commentResult[0].usuario_id !== userId) {
+      if (commentResult.rows[0].usuario_id !== userId) {
         return res.status(403).json({
           success: false,
           message: 'Solo puedes editar o eliminar tus propios comentarios'

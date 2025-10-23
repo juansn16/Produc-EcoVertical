@@ -1,6 +1,6 @@
 // providerController.js
 import db from '../config/db.js';
-import { ProveedorQueries, UbicacionQueries } from '../utils/queries.js';
+import { ProviderQueries, LocationQueries } from '../utils/queries/index.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export const getAllProviders = async (req, res) => {
@@ -9,52 +9,21 @@ export const getAllProviders = async (req, res) => {
     
     const { category } = req.query;
     
-    let query = `
-      SELECT 
-        p.*, 
-        u.ciudad, 
-        u.estado, 
-        u.calle, 
-        u.pais,
-        u.descripcion as ubicacion_descripcion,
-        GROUP_CONCAT(c.nombre SEPARATOR ',') as categorias
-      FROM proveedores p 
-      LEFT JOIN ubicaciones u ON p.ubicacion_id = u.id 
-      LEFT JOIN proveedor_categorias pc ON p.id = pc.proveedor_id AND pc.is_deleted = 0
-      LEFT JOIN categorias c ON pc.categoria_id = c.id AND c.is_deleted = 0
-      WHERE p.is_deleted = 0
-      GROUP BY p.id
-    `;
-    
-    const params = [];
+    let query;
+    let params = [];
     
     // Filtrar por categoría si se especifica
     if (category) {
-      query = `
-        SELECT 
-          p.*, 
-          u.ciudad, 
-          u.estado, 
-          u.calle, 
-          u.pais,
-          u.descripcion as ubicacion_descripcion,
-          GROUP_CONCAT(c.nombre SEPARATOR ',') as categorias
-        FROM proveedores p 
-        LEFT JOIN ubicaciones u ON p.ubicacion_id = u.id 
-        LEFT JOIN proveedor_categorias pc ON p.id = pc.proveedor_id AND pc.is_deleted = 0
-        LEFT JOIN categorias c ON pc.categoria_id = c.id AND c.is_deleted = 0
-        WHERE p.is_deleted = 0 AND c.nombre = ?
-        GROUP BY p.id
-      `;
-      params.push(category);
+      query = ProviderQueries.getProvidersByCategory;
+      params = [category];
+    } else {
+      query = ProviderQueries.getAllProviders;
     }
     
-    query += ` ORDER BY p.nombre_empresa ASC`;
-    
-    const [providers] = await db.execute(query, params);
+    const providersResult = await db.query(query, params);
     
     // Formatear la respuesta para el frontend
-    const formattedProviders = providers.map(provider => {
+    const formattedProviders = providersResult.rows.map(provider => {
       const formatted = {
         id: provider.id,
         nombre_empresa: provider.nombre_empresa,
@@ -72,7 +41,6 @@ export const getAllProviders = async (req, res) => {
           descripcion: provider.ubicacion_descripcion
         } : null
       };
-      
       
       return formatted;
     });
@@ -101,30 +69,10 @@ export const getProvidersByCategory = async (req, res) => {
     console.log(`Obteniendo proveedores para categoría: ${categoryId}`);
     
     // Obtener proveedores que tienen productos de la categoría especificada
-    const query = `
-      SELECT DISTINCT
-        p.*, 
-        u.ciudad, 
-        u.estado, 
-        u.calle, 
-        u.pais,
-        u.descripcion as ubicacion_descripcion,
-        c.nombre as categoria_nombre
-      FROM proveedores p 
-      LEFT JOIN ubicaciones u ON p.ubicacion_id = u.id 
-      INNER JOIN productos_proveedores pp ON p.id = pp.proveedor_id
-      INNER JOIN categorias_productos c ON pp.categoria_id = c.id
-      WHERE p.is_deleted = 0 
-        AND pp.is_deleted = 0 
-        AND c.is_deleted = 0
-        AND c.id = ?
-      ORDER BY p.nombre_empresa ASC
-    `;
-    
-    const [providers] = await db.execute(query, [categoryId]);
+    const providersResult = await db.query(ProviderQueries.getProvidersByProductCategory, [categoryId]);
     
     // Formatear la respuesta
-    const formattedProviders = providers.map(provider => ({
+    const formattedProviders = providersResult.rows.map(provider => ({
       id: provider.id,
       nombre_empresa: provider.nombre_empresa,
       contacto_principal: provider.contacto_principal,
@@ -148,7 +96,7 @@ export const getProvidersByCategory = async (req, res) => {
     res.json({
       success: true,
       data: formattedProviders,
-      message: `Proveedores para categoría ${providers[0]?.categoria_nombre || 'específica'} obtenidos exitosamente`
+      message: `Proveedores para categoría ${providersResult.rows[0]?.categoria_nombre || 'específica'} obtenidos exitosamente`
     });
   } catch (error) {
     console.error('Error al obtener proveedores por categoría:', error);
@@ -165,27 +113,9 @@ export const getProviderById = async (req, res) => {
     const { id } = req.params;
     console.log(`Obteniendo proveedor con ID: ${id}`);
 
-    const query = `
-      SELECT 
-        p.*, 
-        u.ciudad, 
-        u.estado, 
-        u.calle, 
-        u.pais,
-        u.descripcion as ubicacion_descripcion,
-        u.nombre as ubicacion_nombre,
-        GROUP_CONCAT(c.nombre SEPARATOR ',') as categorias
-      FROM proveedores p 
-      LEFT JOIN ubicaciones u ON p.ubicacion_id = u.id 
-      LEFT JOIN proveedor_categorias pc ON p.id = pc.proveedor_id AND pc.is_deleted = 0
-      LEFT JOIN categorias c ON pc.categoria_id = c.id AND c.is_deleted = 0
-      WHERE p.id = ? AND p.is_deleted = 0
-      GROUP BY p.id
-    `;
+    const providersResult = await db.query(ProviderQueries.getProviderById, [id]);
     
-    const [providers] = await db.execute(query, [id]);
-    
-    if (providers.length === 0) {
+    if (providersResult.rows.length === 0) {
       console.log('Proveedor no encontrado');
       return res.status(404).json({
         success: false,
@@ -193,7 +123,7 @@ export const getProviderById = async (req, res) => {
       });
     }
     
-    const provider = providers[0];
+    const provider = providersResult.rows[0];
     
     // Formatear la respuesta como espera el frontend
     const formattedProvider = {
@@ -273,9 +203,8 @@ export const createProvider = async (req, res) => {
       });
     }
 
-    // Iniciar transacción
-    const connection = await db.getConnection();
-    await connection.beginTransaction();
+    // Iniciar transacción PostgreSQL
+    await db.query('BEGIN');
 
     try {
       let ubicacionId = null;
@@ -284,7 +213,9 @@ export const createProvider = async (req, res) => {
       if (ubicacion && (ubicacion.ciudad || ubicacion.calle)) {
         console.log('Creando ubicación para proveedor...');
         
+        const ubicacionId = uuidv4();
         const ubicacionData = [
+          ubicacionId,
           ubicacion.nombre && ubicacion.nombre.trim() !== "" 
             ? ubicacion.nombre 
             : `Ubicación de ${nombre_empresa}`,
@@ -292,31 +223,18 @@ export const createProvider = async (req, res) => {
           ubicacion.ciudad || '',
           ubicacion.estado || '',
           ubicacion.pais || 'Venezuela',
-          null, // latitud
-          null, // longitud
           ubicacion.descripcion || ''
         ];
 
         console.log('Datos de ubicación:', ubicacionData);
 
-        // Crear la ubicación
-        await connection.execute(
-          UbicacionQueries.create,
-          ubicacionData
-        );
+        // Crear la ubicación usando PostgreSQL
+        await db.query(`
+          INSERT INTO ubicaciones (id, nombre, calle, ciudad, estado, pais, descripcion)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `, ubicacionData);
 
-        // Obtener el ID de la ubicación recién creada
-        const [newLocation] = await connection.execute(
-          `SELECT id FROM ubicaciones WHERE nombre = ? AND calle = ? AND ciudad = ? ORDER BY created_at DESC LIMIT 1`,
-          [ubicacionData[0], ubicacionData[1], ubicacionData[2]]
-        );
-
-        if (newLocation.length > 0) {
-          ubicacionId = newLocation[0].id;
-          console.log('Ubicación creada con ID:', ubicacionId);
-        } else {
-          throw new Error('No se pudo obtener el ID de la ubicación creada');
-        }
+        console.log('Ubicación creada con ID:', ubicacionId);
       }
 
       // 2. Crear proveedor
@@ -344,11 +262,11 @@ export const createProvider = async (req, res) => {
 
       console.log('Datos del proveedor:', providerData);
 
-      await connection.execute(
-        `INSERT INTO proveedores (id, nombre_empresa, contacto_principal, telefono, email, ubicacion_id, descripcion)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        providerData
-      );
+      // Crear el proveedor usando PostgreSQL
+      await db.query(`
+        INSERT INTO proveedores (id, nombre_empresa, contacto_principal, telefono, email, ubicacion_id, descripcion)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, providerData);
 
       // 3. Crear categorías en la tabla proveedor_categorias
       if (categoriasToUse.length > 0) {
@@ -356,35 +274,35 @@ export const createProvider = async (req, res) => {
         
         for (const categoriaNombre of categoriasToUse) {
           // Buscar o crear la categoría
-          let [categoriaResult] = await connection.execute(
-            'SELECT id FROM categorias WHERE nombre = ? AND is_deleted = 0',
-            [categoriaNombre.trim()]
-          );
+          let categoriaResult = await db.query(`
+            SELECT id FROM categorias WHERE nombre = $1 AND is_deleted = false
+          `, [categoriaNombre.trim()]);
           
           let categoriaId;
-          if (categoriaResult.length === 0) {
+          if (categoriaResult.rows.length === 0) {
             // Crear nueva categoría
             categoriaId = uuidv4();
-            await connection.execute(
-              'INSERT INTO categorias (id, nombre, descripcion) VALUES (?, ?, ?)',
-              [categoriaId, categoriaNombre.trim(), `Categoría para ${categoriaNombre.trim()}`]
-            );
+            await db.query(`
+              INSERT INTO categorias (id, nombre, descripcion)
+              VALUES ($1, $2, $3)
+            `, [categoriaId, categoriaNombre.trim(), `Categoría para ${categoriaNombre.trim()}`]);
             console.log(`Categoría creada: ${categoriaNombre}`);
           } else {
-            categoriaId = categoriaResult[0].id;
+            categoriaId = categoriaResult.rows[0].id;
+            console.log(`Categoría existente: ${categoriaNombre}`);
           }
           
           // Crear relación proveedor-categoría
-          await connection.execute(
-            ProveedorQueries.createCategoria,
-            [providerId, categoriaId]
-          );
+          await db.query(`
+            INSERT INTO proveedor_categorias (id, proveedor_id, categoria_id)
+            VALUES ($1, $2, $3)
+          `, [uuidv4(), providerId, categoriaId]);
         }
         console.log('Categorías creadas en la tabla proveedor_categorias');
       }
 
       // 4. Obtener el proveedor creado con sus relaciones
-      const getProviderQuery = `
+      const providersResult = await db.query(`
         SELECT 
           p.*, 
           u.ciudad, 
@@ -392,18 +310,17 @@ export const createProvider = async (req, res) => {
           u.calle, 
           u.pais,
           u.descripcion as ubicacion_descripcion,
-          GROUP_CONCAT(c.nombre SEPARATOR ',') as categorias
+          u.nombre as ubicacion_nombre,
+          STRING_AGG(c.nombre, ',') as categorias
         FROM proveedores p 
         LEFT JOIN ubicaciones u ON p.ubicacion_id = u.id 
-        LEFT JOIN proveedor_categorias pc ON p.id = pc.proveedor_id AND pc.is_deleted = 0
-        LEFT JOIN categorias c ON pc.categoria_id = c.id AND c.is_deleted = 0
-        WHERE p.id = ?
-        GROUP BY p.id
-      `;
+        LEFT JOIN proveedor_categorias pc ON p.id = pc.proveedor_id AND pc.is_deleted = false
+        LEFT JOIN categorias c ON pc.categoria_id = c.id AND c.is_deleted = false
+        WHERE p.id = $1 AND p.is_deleted = false
+        GROUP BY p.id, u.ciudad, u.estado, u.calle, u.pais, u.descripcion, u.nombre
+      `, [providerId]);
       
-      const [providers] = await connection.execute(getProviderQuery, [providerId]);
-      
-      const newProvider = providers[0];
+      const newProvider = providersResult.rows[0];
       const formattedProvider = {
         id: newProvider.id,
         nombre_empresa: newProvider.nombre_empresa,
@@ -422,7 +339,8 @@ export const createProvider = async (req, res) => {
         } : null
       };
 
-      await connection.commit();
+      // Confirmar transacción
+      await db.query('COMMIT');
       console.log('Proveedor creado exitosamente:', formattedProvider.nombre_empresa);
 
       res.status(201).json({
@@ -432,11 +350,10 @@ export const createProvider = async (req, res) => {
       });
 
     } catch (error) {
-      await connection.rollback();
+      // Revertir transacción en caso de error
+      await db.query('ROLLBACK');
       console.error('Error en transacción:', error);
       throw error;
-    } finally {
-      connection.release();
     }
 
   } catch (error) {
@@ -497,12 +414,12 @@ export const updateProvider = async (req, res) => {
     try {
       // 1. Verificar si el proveedor existe
       console.log('🔍 Verificando si el proveedor existe...');
-      const [providers] = await connection.execute(
-        'SELECT id, ubicacion_id FROM proveedores WHERE id = ? AND is_deleted = 0',
+      const providersResult = await connection.query(
+        ProviderQueries.checkProviderExists,
         [id]
       );
       
-      if (providers.length === 0) {
+      if (providersResult.rows.length === 0) {
         console.log('❌ Proveedor no encontrado');
         await connection.rollback();
         return res.status(404).json({
@@ -511,7 +428,7 @@ export const updateProvider = async (req, res) => {
         });
       }
 
-      const existingProvider = providers[0];
+      const existingProvider = providersResult.rows[0];
       let ubicacionId = existingProvider.ubicacion_id;
       console.log('✅ Proveedor encontrado. Ubicación ID actual:', ubicacionId);
 
@@ -521,13 +438,8 @@ export const updateProvider = async (req, res) => {
         if (ubicacionId) {
           // Actualizar ubicación existente (sin latitud/longitud)
           console.log('🔄 Actualizando ubicación existente...');
-          const updateUbicacionQuery = `
-            UPDATE ubicaciones 
-            SET ciudad = ?, estado = ?, calle = ?, pais = ?, descripcion = ?
-            WHERE id = ?
-          `;
           
-          await connection.execute(updateUbicacionQuery, [
+          await connection.query(ProviderQueries.updateLocation, [
             ubicacion.ciudad || '',
             ubicacion.estado || '',
             ubicacion.calle || '',
@@ -552,19 +464,19 @@ export const updateProvider = async (req, res) => {
 
           console.log('📊 Datos de ubicación a crear:', ubicacionData);
 
-          const [ubicacionResult] = await connection.execute(
-            UbicacionQueries.create,
+          const ubicacionResult = await connection.query(
+            LocationQueries.create,
             ubicacionData
           );
           
           // Obtener el ID de la ubicación recién creada
-          const [newLocation] = await connection.execute(
-            `SELECT id FROM ubicaciones WHERE nombre = ? AND calle = ? AND ciudad = ? ORDER BY created_at DESC LIMIT 1`,
+          const newLocationResult = await connection.query(
+            ProviderQueries.getNewLocation,
             [ubicacionData[0], ubicacionData[1], ubicacionData[2]]
           );
 
-          if (newLocation.length > 0) {
-            ubicacionId = newLocation[0].id;
+          if (newLocationResult.rows.length > 0) {
+            ubicacionId = newLocationResult.rows[0].id;
             console.log('✅ Ubicación creada con ID:', ubicacionId);
           } else {
             throw new Error('No se pudo obtener el ID de la ubicación creada');
@@ -584,13 +496,6 @@ export const updateProvider = async (req, res) => {
       
       console.log('📊 Categorías a usar:', categoriasToUse);
       
-      const updateProviderQuery = `
-        UPDATE proveedores 
-        SET nombre_empresa = ?, contacto_principal = ?, telefono = ?, email = ?,
-            ubicacion_id = ?, descripcion = ?
-        WHERE id = ?
-      `;
-      
       const updateData = [
         nombre_empresa,
         contacto_principal || '',
@@ -603,7 +508,7 @@ export const updateProvider = async (req, res) => {
       
       console.log('📊 Datos de actualización del proveedor:', updateData);
       
-      await connection.execute(updateProviderQuery, updateData);
+      await connection.query(ProviderQueries.updateProvider, updateData);
       console.log('✅ Proveedor actualizado en base de datos');
 
       // 4. Actualizar categorías en la tabla proveedor_categorias
@@ -612,8 +517,8 @@ export const updateProvider = async (req, res) => {
         
         // Eliminar categorías existentes (soft delete)
         console.log('🗑️ Eliminando categorías existentes...');
-        const [deleteResult] = await connection.execute(ProveedorQueries.deleteCategorias, [id]);
-        console.log(`✅ Eliminadas ${deleteResult.affectedRows} categorías existentes`);
+        const deleteResult = await connection.query(ProviderQueries.deleteProviderCategories, [id]);
+        console.log(`✅ Eliminadas ${deleteResult.rowCount} categorías existentes`);
         
         // Pequeña pausa para asegurar que la eliminación se procese
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -622,46 +527,46 @@ export const updateProvider = async (req, res) => {
         for (const categoriaNombre of categoriasToUse) {
           console.log(`🔍 Procesando categoría: ${categoriaNombre}`);
           // Buscar o crear la categoría
-          let [categoriaResult] = await connection.execute(
-            'SELECT id FROM categorias WHERE nombre = ? AND is_deleted = 0',
+          let categoriaResult = await connection.query(
+            ProviderQueries.findCategoryByName,
             [categoriaNombre.trim()]
           );
           
           let categoriaId;
-          if (categoriaResult.length === 0) {
+          if (categoriaResult.rows.length === 0) {
             // Crear nueva categoría
             categoriaId = uuidv4();
             console.log(`🆕 Creando nueva categoría: ${categoriaNombre} con ID: ${categoriaId}`);
-            await connection.execute(
-              'INSERT INTO categorias (id, nombre, descripcion) VALUES (?, ?, ?)',
+            await connection.query(
+              ProviderQueries.createCategory,
               [categoriaId, categoriaNombre.trim(), `Categoría para ${categoriaNombre.trim()}`]
             );
             console.log(`✅ Categoría creada: ${categoriaNombre}`);
           } else {
-            categoriaId = categoriaResult[0].id;
+            categoriaId = categoriaResult.rows[0].id;
             console.log(`✅ Categoría existente encontrada: ${categoriaNombre} con ID: ${categoriaId}`);
           }
           
           // Verificar si la relación ya existe (incluyendo las eliminadas)
-          const [existingRelation] = await connection.execute(
-            'SELECT id, is_deleted FROM proveedor_categorias WHERE proveedor_id = ? AND categoria_id = ?',
+          const existingRelationResult = await connection.query(
+            ProviderQueries.checkProviderCategoryRelation,
             [id, categoriaId]
           );
           
-          if (existingRelation.length === 0) {
+          if (existingRelationResult.rows.length === 0) {
             // Crear nueva relación
             console.log(`🔗 Creando nueva relación proveedor-categoría: ${id} -> ${categoriaId}`);
-            await connection.execute(
-              ProveedorQueries.createCategoria,
-              [id, categoriaId]
+            await connection.query(
+              ProviderQueries.createProviderCategory,
+              [uuidv4(), id, categoriaId]
             );
           } else {
-            const relation = existingRelation[0];
-            if (relation.is_deleted === 1) {
+            const relation = existingRelationResult.rows[0];
+            if (relation.is_deleted === true) {
               // Restaurar relación eliminada
               console.log(`🔄 Restaurando relación eliminada: ${id} -> ${categoriaId}`);
-              await connection.execute(
-                'UPDATE proveedor_categorias SET is_deleted = 0 WHERE id = ?',
+              await connection.query(
+                ProviderQueries.restoreProviderCategory,
                 [relation.id]
               );
             } else {
@@ -673,36 +578,19 @@ export const updateProvider = async (req, res) => {
       } else {
         // Si no hay categorías, eliminar todas las existentes
         console.log('🗑️ No hay categorías, eliminando todas las existentes...');
-        const [deleteResult] = await connection.execute(ProveedorQueries.deleteCategorias, [id]);
-        console.log(`✅ Eliminadas ${deleteResult.affectedRows} categorías del proveedor`);
+        const deleteResult = await connection.query(ProviderQueries.deleteProviderCategories, [id]);
+        console.log(`✅ Eliminadas ${deleteResult.rowCount} categorías del proveedor`);
       }
 
       // 5. Obtener el proveedor actualizado
       console.log('🔍 Obteniendo proveedor actualizado...');
-      const getProviderQuery = `
-        SELECT 
-          p.*, 
-          u.ciudad, 
-          u.estado, 
-          u.calle, 
-          u.pais,
-          u.descripcion as ubicacion_descripcion,
-          GROUP_CONCAT(c.nombre SEPARATOR ',') as categorias
-        FROM proveedores p 
-        LEFT JOIN ubicaciones u ON p.ubicacion_id = u.id 
-        LEFT JOIN proveedor_categorias pc ON p.id = pc.proveedor_id AND pc.is_deleted = 0
-        LEFT JOIN categorias c ON pc.categoria_id = c.id AND c.is_deleted = 0
-        WHERE p.id = ?
-        GROUP BY p.id
-      `;
+      const updatedProvidersResult = await connection.query(ProviderQueries.getProviderById, [id]);
       
-      const [updatedProviders] = await connection.execute(getProviderQuery, [id]);
-      
-      if (updatedProviders.length === 0) {
+      if (updatedProvidersResult.rows.length === 0) {
         throw new Error('No se pudo obtener el proveedor actualizado');
       }
       
-      const updatedProvider = updatedProviders[0];
+      const updatedProvider = updatedProvidersResult.rows[0];
       const formattedProvider = {
         id: updatedProvider.id,
         nombre_empresa: updatedProvider.nombre_empresa,
@@ -762,12 +650,9 @@ export const deleteProvider = async (req, res) => {
     console.log('Eliminando proveedor:', id);
 
     // Soft delete
-    const [result] = await db.execute(
-      'UPDATE proveedores SET is_deleted = 1 WHERE id = ?',
-      [id]
-    );
+    const result = await db.query(ProviderQueries.deleteProvider, [id]);
 
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({
         success: false,
         message: 'Proveedor no encontrado'
@@ -802,33 +687,10 @@ export const searchProviders = async (req, res) => {
       });
     }
 
-    const searchQuery = `
-      SELECT 
-        p.*, 
-        u.ciudad, 
-        u.estado, 
-        u.calle, 
-        u.pais,
-        u.descripcion as ubicacion_descripcion
-      FROM proveedores p 
-      LEFT JOIN ubicaciones u ON p.ubicacion_id = u.id 
-      WHERE p.is_deleted = 0 AND (
-        p.nombre_empresa LIKE ? OR 
-        p.contacto_principal LIKE ? OR 
-        p.email LIKE ? OR 
-        p.especialidad LIKE ? OR
-        u.ciudad LIKE ? OR
-        u.estado LIKE ?
-      )
-      ORDER BY p.nombre_empresa ASC
-    `;
-    
     const searchTerm = `%${q}%`;
-    const [providers] = await db.execute(searchQuery, [
-      searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm
-    ]);
+    const providersResult = await db.query(ProviderQueries.searchProviders, [searchTerm]);
 
-    const formattedProviders = providers.map(provider => ({
+    const formattedProviders = providersResult.rows.map(provider => ({
       id: provider.id,
       nombre_empresa: provider.nombre_empresa,
       contacto_principal: provider.contacto_principal,

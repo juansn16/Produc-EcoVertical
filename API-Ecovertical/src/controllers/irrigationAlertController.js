@@ -1,5 +1,6 @@
 import db from '../config/db.js';
 import irrigationAlertService from '../services/irrigationAlertService.js';
+import { IrrigationAlertQueries } from '../utils/queries/index.js';
 
 /**
  * Crear una nueva alerta de riego
@@ -30,28 +31,23 @@ export const createIrrigationAlert = async (req, res, next) => {
     }
 
     // Verificar que el huerto existe
-    const [huertos] = await db.execute(
-      'SELECT id, nombre, usuario_creador FROM huertos WHERE id = ?',
-      [huerto_id]
-    );
+    const huertosResult = await db.query(IrrigationAlertQueries.checkGardenExists, [huerto_id]);
 
-    if (huertos.length === 0) {
+    if (huertosResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
       });
     }
 
-    const huerto = huertos[0];
+    const huerto = huertosResult.rows[0];
 
     // Crear la alerta
-    const [result] = await db.execute(
-      `INSERT INTO alertas_riego (huerto_id, descripcion, fecha_alerta, hora_alerta, creado_por) 
-       VALUES (?, ?, ?, ?, ?)`,
+    const result = await db.query(IrrigationAlertQueries.createIrrigationAlert, 
       [huerto_id, descripcion, fecha_alerta, hora_alerta, creado_por]
     );
 
-    const alertId = result.insertId;
+    const alertId = result.rows[0].id;
 
     // Crear notificaciones
     try {
@@ -115,32 +111,19 @@ export const getAllIrrigationAlerts = async (req, res, next) => {
     const offset = (page - 1) * limit;
 
     // Obtener alertas con información del huerto y creador
-    const [alerts] = await db.execute(
-      `SELECT ar.id, ar.huerto_id, ar.descripcion, ar.fecha_alerta, ar.hora_alerta,
-              ar.estado, ar.fecha_creacion, ar.fecha_actualizacion,
-              h.nombre as huerto_nombre, h.usuario_creador as propietario_id,
-              u.nombre as creado_por_nombre, u.email as creado_por_email
-       FROM alertas_riego ar
-       JOIN huertos h ON ar.huerto_id COLLATE utf8mb4_unicode_ci = h.id COLLATE utf8mb4_unicode_ci
-       JOIN usuarios u ON ar.creado_por COLLATE utf8mb4_unicode_ci = u.id COLLATE utf8mb4_unicode_ci
-       WHERE ar.estado = ?
-       ORDER BY ar.fecha_creacion DESC, ar.fecha_alerta DESC, ar.hora_alerta DESC
-       LIMIT ? OFFSET ?`,
+    const alertsResult = await db.query(IrrigationAlertQueries.getAllIrrigationAlerts, 
       [estado, parseInt(limit), parseInt(offset)]
     );
 
     // Contar total de alertas
-    const [countResult] = await db.execute(
-      'SELECT COUNT(*) as total FROM alertas_riego WHERE estado = ?',
-      [estado]
-    );
+    const countResult = await db.query(IrrigationAlertQueries.countIrrigationAlerts, [estado]);
 
-    const total = countResult[0].total;
+    const total = countResult.rows[0].total;
 
     res.json({
       success: true,
       data: {
-        alerts,
+        alerts: alertsResult.rows,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
@@ -167,33 +150,19 @@ export const getUserIrrigationAlerts = async (req, res, next) => {
     const offset = (page - 1) * limit;
 
     // Obtener alertas de huertos del usuario
-    const [alerts] = await db.execute(
-      `SELECT ar.id, ar.huerto_id, ar.descripcion, ar.fecha_alerta, ar.hora_alerta,
-              ar.estado, ar.fecha_creacion,
-              h.nombre as huerto_nombre
-       FROM alertas_riego ar
-       JOIN huertos h ON ar.huerto_id COLLATE utf8mb4_unicode_ci = h.id COLLATE utf8mb4_unicode_ci
-       WHERE h.usuario_creador = ?
-       ORDER BY ar.fecha_alerta ASC, ar.hora_alerta ASC
-       LIMIT ? OFFSET ?`,
+    const alertsResult = await db.query(IrrigationAlertQueries.getUserIrrigationAlerts, 
       [userId, parseInt(limit), parseInt(offset)]
     );
 
     // Contar total
-    const [countResult] = await db.execute(
-      `SELECT COUNT(*) as total 
-       FROM alertas_riego ar
-       JOIN huertos h ON ar.huerto_id COLLATE utf8mb4_unicode_ci = h.id COLLATE utf8mb4_unicode_ci
-       WHERE h.usuario_creador = ?`,
-      [userId]
-    );
+    const countResult = await db.query(IrrigationAlertQueries.countUserIrrigationAlerts, [userId]);
 
-    const total = countResult[0].total;
+    const total = countResult.rows[0].total;
 
     res.json({
       success: true,
       data: {
-        alerts,
+        alerts: alertsResult.rows,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
@@ -219,26 +188,16 @@ export const getIrrigationAlertById = async (req, res, next) => {
     const userRole = req.user.role;
 
     // Obtener la alerta
-    const [alerts] = await db.execute(
-      `SELECT ar.id, ar.huerto_id, ar.descripcion, ar.fecha_alerta, ar.hora_alerta,
-              ar.estado, ar.fecha_creacion, ar.fecha_actualizacion,
-              h.nombre as huerto_nombre, h.usuario_creador as propietario_id,
-              u.nombre as creado_por_nombre, u.email as creado_por_email
-       FROM alertas_riego ar
-       JOIN huertos h ON ar.huerto_id COLLATE utf8mb4_unicode_ci = h.id COLLATE utf8mb4_unicode_ci
-       JOIN usuarios u ON ar.creado_por COLLATE utf8mb4_unicode_ci = u.id COLLATE utf8mb4_unicode_ci
-       WHERE ar.id = ?`,
-      [id]
-    );
+    const alertsResult = await db.query(IrrigationAlertQueries.getIrrigationAlertById, [id]);
 
-    if (alerts.length === 0) {
+    if (alertsResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Alerta no encontrada'
       });
     }
 
-    const alert = alerts[0];
+    const alert = alertsResult.rows[0];
 
     // Verificar permisos: admin/tecnico pueden ver todas, usuarios solo las de sus huertos
     if (!['administrador', 'tecnico'].includes(userRole) && alert.propietario_id !== userId) {
@@ -278,22 +237,16 @@ export const updateIrrigationAlertStatus = async (req, res, next) => {
     }
 
     // Obtener la alerta
-    const [alerts] = await db.execute(
-      `SELECT ar.*, h.usuario_creador as propietario_id 
-       FROM alertas_riego ar
-       JOIN huertos h ON ar.huerto_id COLLATE utf8mb4_unicode_ci = h.id COLLATE utf8mb4_unicode_ci
-       WHERE ar.id = ?`,
-      [id]
-    );
+    const alertsResult = await db.query(IrrigationAlertQueries.getIrrigationAlertWithOwner, [id]);
 
-    if (alerts.length === 0) {
+    if (alertsResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Alerta no encontrada'
       });
     }
 
-    const alert = alerts[0];
+    const alert = alertsResult.rows[0];
 
     // Verificar permisos
     if (!['administrador', 'tecnico'].includes(userRole) && alert.propietario_id !== userId) {
@@ -304,22 +257,16 @@ export const updateIrrigationAlertStatus = async (req, res, next) => {
     }
 
     // Actualizar estado
-    await db.execute(
-      'UPDATE alertas_riego SET estado = ?, fecha_actualizacion = CURRENT_TIMESTAMP WHERE id = ?',
-      [estado, id]
-    );
+    await db.query(IrrigationAlertQueries.updateIrrigationAlertStatus, [estado, id]);
 
     // Si la alerta se marca como completada, notificar a los residentes del huerto
     if (estado === 'completada') {
       try {
         // Obtener información del huerto
-        const [huertoInfo] = await db.execute(
-          'SELECT id, nombre FROM huertos WHERE id = ?',
-          [alert.huerto_id]
-        );
+        const huertoInfoResult = await db.query(IrrigationAlertQueries.getGardenInfo, [alert.huerto_id]);
 
-        if (huertoInfo.length > 0) {
-          const huerto = huertoInfo[0];
+        if (huertoInfoResult.rows.length > 0) {
+          const huerto = huertoInfoResult.rows[0];
           
           // Verificar si hay usuarios conectados o colaboradores antes de notificar completado
           const hasConnectedUsers = await irrigationAlertService.checkIfUsersAreConnected(huerto.id);
@@ -366,22 +313,16 @@ export const deleteIrrigationAlert = async (req, res, next) => {
     const userRole = req.user.role;
 
     // Obtener la alerta
-    const [alerts] = await db.execute(
-      `SELECT ar.*, h.usuario_creador as propietario_id 
-       FROM alertas_riego ar
-       JOIN huertos h ON ar.huerto_id COLLATE utf8mb4_unicode_ci = h.id COLLATE utf8mb4_unicode_ci
-       WHERE ar.id = ?`,
-      [id]
-    );
+    const alertsResult = await db.query(IrrigationAlertQueries.getIrrigationAlertWithOwner, [id]);
 
-    if (alerts.length === 0) {
+    if (alertsResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Alerta no encontrada'
       });
     }
 
-    const alert = alerts[0];
+    const alert = alertsResult.rows[0];
 
     // Solo administradores pueden eliminar alertas
     if (userRole !== 'administrador') {
@@ -392,7 +333,7 @@ export const deleteIrrigationAlert = async (req, res, next) => {
     }
 
     // Eliminar la alerta (las notificaciones se eliminan por CASCADE)
-    await db.execute('DELETE FROM alertas_riego WHERE id = ?', [id]);
+    await db.query(IrrigationAlertQueries.deleteIrrigationAlert, [id]);
 
     res.json({
       success: true,
@@ -422,19 +363,16 @@ export const getIrrigationAlertStats = async (req, res, next) => {
     const userId = req.user.id;
 
     // Obtener la ubicación del usuario autenticado
-    const [userLocation] = await db.execute(
-      "SELECT ubicacion_id FROM usuarios WHERE id = ? AND is_deleted = 0",
-      [userId]
-    );
+    const userLocationResult = await db.query(IrrigationAlertQueries.getUserLocation, [userId]);
 
-    if (userLocation.length === 0) {
+    if (userLocationResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Usuario no encontrado'
       });
     }
 
-    const userLocationId = userLocation[0].ubicacion_id;
+    const userLocationId = userLocationResult.rows[0].ubicacion_id;
 
     if (!userLocationId) {
       return res.status(400).json({
@@ -444,46 +382,16 @@ export const getIrrigationAlertStats = async (req, res, next) => {
     }
 
     // Estadísticas de alertas (filtradas por condominio)
-    const [alertStats] = await db.execute(
-      `SELECT 
-        ar.estado,
-        COUNT(*) as cantidad
-       FROM alertas_riego ar
-       JOIN huertos h ON ar.huerto_id COLLATE utf8mb4_unicode_ci = h.id COLLATE utf8mb4_unicode_ci
-       WHERE h.ubicacion_id = ?
-       GROUP BY ar.estado`,
-      [userLocationId]
-    );
+    const alertStatsResult = await db.query(IrrigationAlertQueries.getAlertStatsByLocation, [userLocationId]);
 
     // Estadísticas de notificaciones (filtradas por condominio)
-    const [notificationStats] = await db.execute(
-      `SELECT 
-        na.tipo,
-        COUNT(*) as cantidad
-       FROM notificaciones_alertas na
-       JOIN usuarios u ON na.usuario_id COLLATE utf8mb4_unicode_ci = u.id COLLATE utf8mb4_unicode_ci
-       WHERE u.ubicacion_id = ?
-       GROUP BY na.tipo`,
-      [userLocationId]
-    );
+    const notificationStatsResult = await db.query(IrrigationAlertQueries.getNotificationStatsByLocation, [userLocationId]);
 
     // Estadísticas adicionales: alertas vencidas (basado en notificaciones, filtradas por condominio)
-    const [vencidaStats] = await db.execute(
-      `SELECT COUNT(*) as cantidad
-       FROM notificaciones_alertas na
-       JOIN usuarios u ON na.usuario_id COLLATE utf8mb4_unicode_ci = u.id COLLATE utf8mb4_unicode_ci
-       WHERE na.tipo = 'vencida' AND u.ubicacion_id = ?`,
-      [userLocationId]
-    );
+    const vencidaStatsResult = await db.query(IrrigationAlertQueries.getExpiredAlertStatsByLocation, [userLocationId]);
 
     // Usuarios conectados (filtrados por condominio) - contar usuarios únicos
-    const [onlineUsers] = await db.execute(
-      `SELECT COUNT(DISTINCT uc.usuario_id) as cantidad 
-       FROM usuarios_conectados uc
-       JOIN usuarios u ON uc.usuario_id COLLATE utf8mb4_unicode_ci = u.id COLLATE utf8mb4_unicode_ci
-       WHERE u.ubicacion_id = ?`,
-      [userLocationId]
-    );
+    const onlineUsersResult = await db.query(IrrigationAlertQueries.getOnlineUsersByLocation, [userLocationId]);
 
     // Estadísticas del servicio WebSocket
     const serviceStats = irrigationAlertService.getStats();
@@ -491,10 +399,10 @@ export const getIrrigationAlertStats = async (req, res, next) => {
     res.json({
       success: true,
       data: {
-        alerts: alertStats,
-        notifications: notificationStats,
-        alertasVencidas: vencidaStats[0].cantidad,
-        onlineUsers: onlineUsers[0].cantidad,
+        alerts: alertStatsResult.rows,
+        notifications: notificationStatsResult.rows,
+        alertasVencidas: vencidaStatsResult.rows[0].cantidad,
+        onlineUsers: onlineUsersResult.rows[0].cantidad,
         condominio: userLocationId,
         serviceStats
       }
@@ -563,19 +471,16 @@ export const getConnectedUsers = async (req, res, next) => {
     const userId = req.user.id;
 
     // Obtener la ubicación del usuario autenticado
-    const [userLocation] = await db.execute(
-      "SELECT ubicacion_id FROM usuarios WHERE id = ? AND is_deleted = 0",
-      [userId]
-    );
+    const userLocationResult = await db.query(IrrigationAlertQueries.getUserLocation, [userId]);
 
-    if (userLocation.length === 0) {
+    if (userLocationResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Usuario no encontrado'
       });
     }
 
-    const userLocationId = userLocation[0].ubicacion_id;
+    const userLocationId = userLocationResult.rows[0].ubicacion_id;
 
     if (!userLocationId) {
       return res.status(400).json({

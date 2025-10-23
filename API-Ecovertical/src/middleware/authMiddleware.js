@@ -18,10 +18,11 @@ export const authenticateJWT = async (req, res, next) => {
 			const decoded = verifyAccessToken(token);
 			
 			// Verificar que el usuario existe y no está eliminado
-			const [users] = await db.query(
-				"SELECT id, nombre, email, rol FROM usuarios WHERE id = ? AND is_deleted = 0",
+			const result = await db.query(
+				"SELECT id, nombre, email, rol FROM usuarios WHERE id = $1 AND is_deleted = false",
 				[decoded.id]
 			);
+			const users = result.rows;
 
 			if (users.length === 0) {
 				return res.status(401).json({

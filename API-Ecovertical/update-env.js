@@ -1,7 +1,11 @@
-# Configuración de la base de datos PostgreSQL
+// Script para actualizar el archivo .env con configuración de PostgreSQL
+import fs from 'fs';
+import path from 'path';
+
+const envContent = `# Configuración de la base de datos PostgreSQL
 DB_HOST=localhost
 DB_USER=postgres
-DB_PASS=
+DB_PASS=ubiquiti
 DB_NAME=huertos
 DB_PORT=5432
 
@@ -33,4 +37,17 @@ EMAIL_PASS=tu_app_password_gmail
 FRONTEND_URL=http://localhost:5173
 
 GEMINI_API_KEY=
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-2.5-flash`;
+
+try {
+  fs.writeFileSync('.env', envContent);
+  console.log('✅ Archivo .env actualizado con configuración de PostgreSQL');
+  console.log('📋 Variables configuradas:');
+  console.log('   DB_HOST=localhost');
+  console.log('   DB_USER=postgres');
+  console.log('   DB_PASS=ubiquiti');
+  console.log('   DB_NAME=huertos');
+  console.log('   DB_PORT=5432');
+} catch (error) {
+  console.error('❌ Error al actualizar .env:', error.message);
+}

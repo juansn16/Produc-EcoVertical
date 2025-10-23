@@ -1,4 +1,5 @@
 import db from '../config/db.js';
+import { AlertNotificationQueries } from '../utils/queries/index.js';
 
 /**
  * Obtener notificaciones de alertas para el usuario actual
@@ -9,52 +10,30 @@ export const getUserAlertNotifications = async (req, res, next) => {
     const { page = 1, limit = 20, unread_only = false } = req.query;
     const offset = (page - 1) * limit;
 
-    let whereClause = 'WHERE na.usuario_id = ?';
-    let queryParams = [userId];
-
-    if (unread_only === 'true') {
-      whereClause += ' AND na.leida = FALSE';
-    }
-
     // Obtener notificaciones con información de la alerta
-    const [notifications] = await db.execute(
-      `SELECT na.id, na.alerta_id, na.tipo, na.mensaje, na.leida,
-              na.fecha_creacion, na.fecha_lectura,
-              ar.huerto_id, ar.fecha_alerta, ar.hora_alerta,
-              h.nombre as huerto_nombre
-       FROM notificaciones_alertas na
-       LEFT JOIN alertas_riego ar ON na.alerta_id COLLATE utf8mb4_unicode_ci = ar.id COLLATE utf8mb4_unicode_ci
-       LEFT JOIN huertos h ON ar.huerto_id COLLATE utf8mb4_unicode_ci = h.id COLLATE utf8mb4_unicode_ci
-       ${whereClause}
-       ORDER BY na.fecha_creacion DESC
-       LIMIT ? OFFSET ?`,
-      [...queryParams, parseInt(limit), parseInt(offset)]
-    );
+    const notifications = await db.query(AlertNotificationQueries.getUserAlertNotifications, [
+      userId,
+      unread_only === 'true' ? true : null,
+      parseInt(limit),
+      parseInt(offset)
+    ]);
 
     // Contar total de notificaciones
-    const [countResult] = await db.execute(
-      `SELECT COUNT(*) as total 
-       FROM notificaciones_alertas na
-       ${whereClause}`,
-      queryParams
-    );
+    const countResult = await db.query(AlertNotificationQueries.countUserAlertNotifications, [
+      userId,
+      unread_only === 'true' ? true : null
+    ]);
 
-    const total = countResult[0].total;
+    const total = countResult.rows[0].total;
 
     // Contar notificaciones no leídas
-    const [unreadCountResult] = await db.execute(
-      `SELECT COUNT(*) as unread_count 
-       FROM notificaciones_alertas 
-       WHERE usuario_id = ? AND leida = FALSE`,
-      [userId]
-    );
-
-    const unreadCount = unreadCountResult[0].unread_count;
+    const unreadCountResult = await db.query(AlertNotificationQueries.countUnreadNotifications, [userId]);
+    const unreadCount = unreadCountResult.rows[0].unread_count;
 
     res.json({
       success: true,
       data: {
-        notifications,
+        notifications: notifications.rows,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
@@ -80,12 +59,9 @@ export const markNotificationAsRead = async (req, res, next) => {
     const userId = req.user.id;
 
     // Verificar que la notificación pertenece al usuario
-    const [notifications] = await db.execute(
-      'SELECT id FROM notificaciones_alertas WHERE id = ? AND usuario_id = ?',
-      [id, userId]
-    );
+    const notifications = await db.query(AlertNotificationQueries.verifyNotificationOwnership, [id, userId]);
 
-    if (notifications.length === 0) {
+    if (notifications.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Notificación no encontrada'
@@ -93,10 +69,7 @@ export const markNotificationAsRead = async (req, res, next) => {
     }
 
     // Marcar como leída
-    await db.execute(
-      'UPDATE notificaciones_alertas SET leida = TRUE, fecha_lectura = CURRENT_TIMESTAMP WHERE id = ?',
-      [id]
-    );
+    await db.query(AlertNotificationQueries.markNotificationAsRead, [id]);
 
     res.json({
       success: true,
@@ -116,10 +89,7 @@ export const markAllNotificationsAsRead = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
-    await db.execute(
-      'UPDATE notificaciones_alertas SET leida = TRUE, fecha_lectura = CURRENT_TIMESTAMP WHERE usuario_id = ? AND leida = FALSE',
-      [userId]
-    );
+    await db.query(AlertNotificationQueries.markAllNotificationsAsRead, [userId]);
 
     res.json({
       success: true,
@@ -141,12 +111,9 @@ export const deleteNotification = async (req, res, next) => {
     const userId = req.user.id;
 
     // Verificar que la notificación pertenece al usuario
-    const [notifications] = await db.execute(
-      'SELECT id FROM notificaciones_alertas WHERE id = ? AND usuario_id = ?',
-      [id, userId]
-    );
+    const notifications = await db.query(AlertNotificationQueries.verifyNotificationOwnership, [id, userId]);
 
-    if (notifications.length === 0) {
+    if (notifications.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Notificación no encontrada'
@@ -154,10 +121,7 @@ export const deleteNotification = async (req, res, next) => {
     }
 
     // Eliminar la notificación
-    await db.execute(
-      'DELETE FROM notificaciones_alertas WHERE id = ?',
-      [id]
-    );
+    await db.query(AlertNotificationQueries.deleteNotification, [id]);
 
     res.json({
       success: true,
@@ -177,15 +141,12 @@ export const getUnreadNotificationCount = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
-    const [result] = await db.execute(
-      'SELECT COUNT(*) as unread_count FROM notificaciones_alertas WHERE usuario_id = ? AND leida = FALSE',
-      [userId]
-    );
+    const result = await db.query(AlertNotificationQueries.getUnreadNotificationCount, [userId]);
 
     res.json({
       success: true,
       data: {
-        unreadCount: result[0].unread_count
+        unreadCount: result.rows[0].unread_count
       }
     });
 
@@ -202,21 +163,11 @@ export const getRecentNotifications = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
-    const [notifications] = await db.execute(
-      `SELECT na.id, na.tipo, na.mensaje, na.leida, na.fecha_creacion,
-              ar.huerto_id, h.nombre as huerto_nombre
-       FROM notificaciones_alertas na
-       LEFT JOIN alertas_riego ar ON na.alerta_id COLLATE utf8mb4_unicode_ci = ar.id COLLATE utf8mb4_unicode_ci
-       LEFT JOIN huertos h ON ar.huerto_id COLLATE utf8mb4_unicode_ci = h.id COLLATE utf8mb4_unicode_ci
-       WHERE na.usuario_id = ?
-       ORDER BY na.fecha_creacion DESC
-       LIMIT 5`,
-      [userId]
-    );
+    const notifications = await db.query(AlertNotificationQueries.getRecentNotifications, [userId]);
 
     res.json({
       success: true,
-      data: notifications
+      data: notifications.rows
     });
 
   } catch (error) {

@@ -1,9 +1,10 @@
 import bcryptjs from "bcryptjs";
 import db from "../config/db.js";
-import { UsuarioQueries, AuthTokenQueries, UbicacionQueries } from "../utils/queries.js";
+import { AuthQueries, InvitationQueries, PasswordResetQueries, AuthTokenQueries, UbicacionQueries } from "../utils/queries/index.js";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
 import { sendPasswordResetCodeEmail } from "../utils/sendEmail.js";
 import crypto from "crypto";
+import { v4 as uuidv4 } from 'uuid';
 
 // Helper para no enviar contraseña y mapear a nombres consistentes
 const safeUser = (u) => {
@@ -32,14 +33,14 @@ export const register = async (req, res, next) => {
     } = req.body;
 
     // Verificar si el usuario ya existe por email
-    const [existingUsers] = await db.query(UsuarioQueries.getByEmail, [email]);
-    if (existingUsers.length > 0) {
+    const existingUsers = await db.query(AuthQueries.getByEmail, [email]);
+    if (existingUsers.rows.length > 0) {
       return res.status(409).json({ success: false, message: "El email ya está registrado" });
     }
 
     // Verificar si el usuario ya existe por cédula
-    const [existingCedula] = await db.query(UsuarioQueries.getByCedula, [cedula]);
-    if (existingCedula.length > 0) {
+    const existingCedula = await db.query(AuthQueries.getByCedula, [cedula]);
+    if (existingCedula.rows.length > 0) {
       return res.status(409).json({ success: false, message: "La cédula ya está registrada" });
     }
 
@@ -61,7 +62,9 @@ export const register = async (req, res, next) => {
       const lngRounded = longitud ? Math.round(parseFloat(longitud) * 100) / 100 : null;
       
       const nombreUbicacion = `${ciudad}-${cedula}`.slice(0, 100);
+      const ubicacionIdTemp = uuidv4();
       await db.query(UbicacionQueries.create, [
+        ubicacionIdTemp,
         nombreUbicacion,
         calle,
         ciudad,
@@ -72,13 +75,13 @@ export const register = async (req, res, next) => {
         null
       ]);
       
-      const [createdUbic] = await db.query(UbicacionQueries.getByAddress, [
+      const createdUbic = await db.query(UbicacionQueries.getByAddress, [
         calle,
         ciudad,
         estado ?? null,
         pais ?? null
       ]);
-      ubicacionId = createdUbic[0].id;
+      ubicacionId = createdUbic.rows[0].id;
       rol = 'administrador';
       esAdministradorOriginal = true;
       
@@ -94,25 +97,16 @@ export const register = async (req, res, next) => {
       }
 
       // Validar código de invitación
-      const [codigoRows] = await db.query(
-        `SELECT ci.id, ci.codigo, ci.administrador_id, ci.ubicacion_id, ci.fecha_expiracion,
-                u.nombre as admin_nombre, u.email as admin_email,
-                ub.nombre as ubicacion_nombre, ub.ciudad, ub.estado
-         FROM codigos_invitacion ci
-         JOIN usuarios u ON ci.administrador_id = u.id
-         JOIN ubicaciones ub ON ci.ubicacion_id = ub.id
-         WHERE ci.codigo = ? AND ci.esta_activo = 1 AND ci.is_deleted = 0`,
-        [codigo_invitacion]
-      );
+      const codigoRows = await db.query(InvitationQueries.getByCode, [codigo_invitacion]);
 
-      if (!codigoRows.length) {
+      if (!codigoRows.rows.length) {
         return res.status(400).json({
           success: false,
           message: "Código de invitación no válido o no encontrado"
         });
       }
 
-      const codigoData = codigoRows[0];
+      const codigoData = codigoRows.rows[0];
       const ahora = new Date();
       const estaExpirado = codigoData.fecha_expiracion && new Date(codigoData.fecha_expiracion) < ahora;
 
@@ -137,35 +131,32 @@ export const register = async (req, res, next) => {
     }
         
     // Crear usuario con los nuevos campos
-    const [userResult] = await db.query(
-      `INSERT INTO usuarios 
-       (id, nombre, cedula, telefono, preferencias_cultivo, rol, ubicacion_id, email, password, es_administrador_original, codigo_invitacion_usado) 
-       VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        nombre,
-        cedula,
-        telefono ?? null,
-        preferencias_cultivo ?? null,
-        rol,
-        ubicacionId,
-        email,
-        hashedPassword,
-        esAdministradorOriginal,
-        codigoInvitacionUsado
-      ]
-    );
+    const userId = uuidv4();
+    await db.query(AuthQueries.create, [
+      userId,
+      nombre,
+      cedula,
+      telefono ?? null,
+      preferencias_cultivo ?? null,
+      rol,
+      ubicacionId,
+      email,
+      hashedPassword,
+      esAdministradorOriginal,
+      codigoInvitacionUsado
+    ]);
     
-    console.log('Usuario insertado, resultado:', userResult);
+    console.log('Usuario insertado, ID:', userId);
 
-    // Obtener el id del usuario recién creado
-    const [rows] = await db.query(UsuarioQueries.getByEmail, [email]);
-    console.log('Consulta para recuperar usuario:', { email, rowsCount: rows.length });
+    // Obtener el usuario recién creado
+    const rows = await db.query(AuthQueries.getByEmail, [email]);
+    console.log('Consulta para recuperar usuario:', { email, rowsCount: rows.rows.length });
     
-    if (!rows.length) {
+    if (!rows.rows.length) {
       throw new Error('Error al crear usuario: no se pudo recuperar después de la inserción');
     }
     
-    const user = rows[0];
+    const user = rows.rows[0];
     console.log('Usuario creado:', { id: user.id, email: user.email, rol: user.rol });
 
     // Si es residente, solo guardamos el código usado en el usuario
@@ -190,7 +181,7 @@ export const register = async (req, res, next) => {
     // Calcular expiración (7 días desde ahora)
     const expiracion = new Date(Date.now() + 7 * 24 * 3600 * 1000);
     console.log('Guardando refresh token en BD...');
-    await db.query(AuthTokenQueries.create, [user.id, refreshToken, expiracion]);
+    await db.query(AuthTokenQueries.create, [uuidv4(), user.id, refreshToken, expiracion]);
     console.log('Refresh token guardado exitosamente');
 
     const responseData = {
@@ -246,10 +237,10 @@ export const login = async (req, res, next) => {
     console.log('Login intentado para:', { email, hasPassword: !!password });
 
     // Buscar usuario por email (no eliminado)
-    const [users] = await db.query(UsuarioQueries.getByEmail, [email]);
-    console.log('Usuarios encontrados:', { count: users.length });
+    const users = await db.query(AuthQueries.getByEmail, [email]);
+    console.log('Usuarios encontrados:', { count: users.rows.length });
     
-    if (users.length === 0) {
+    if (users.rows.length === 0) {
       console.log('Usuario no encontrado, enviando error 401');
       return res.status(401).json({ 
         success: false, 
@@ -258,7 +249,7 @@ export const login = async (req, res, next) => {
       });
     }
 
-    const user = users[0];
+    const user = users.rows[0];
     console.log('Usuario encontrado:', { id: user.id, email: user.email, rol: user.rol });
 
     // Verificar contraseña
@@ -290,7 +281,7 @@ export const login = async (req, res, next) => {
     // Calcular expiración (7 días desde ahora)
     const expiracion = new Date(Date.now() + 7 * 24 * 3600 * 1000);
     console.log('Guardando refresh token en BD...');
-    await db.query(AuthTokenQueries.create, [user.id, refreshToken, expiracion]);
+    await db.query(AuthTokenQueries.create, [uuidv4(), user.id, refreshToken, expiracion]);
     console.log('Refresh token guardado exitosamente');
 
     const responseData = {
@@ -352,16 +343,16 @@ export const refreshToken = async (req, res, next) => {
     }
 
     // Verificar existencia en BD
-    const [rows] = await db.query(AuthTokenQueries.getByToken, [token]);
-    console.log('Token encontrado en BD:', { found: rows.length > 0 });
+    const rows = await db.query(AuthTokenQueries.getByToken, [token]);
+    console.log('Token encontrado en BD:', { found: rows.rows.length > 0 });
     
-    if (!rows.length) {
+    if (!rows.rows.length) {
       return res.status(401).json({ success: false, message: "Token no encontrado en BD" });
     }
 
-    // Rotar refresh token: invalidar el antiguo y crear uno nuevo
-    await db.query(AuthTokenQueries.deleteToken, [token]);
-    console.log('Token antiguo invalidado');
+    // Rotar refresh token: invalidar TODOS los tokens del usuario y crear uno nuevo
+    await db.query(AuthTokenQueries.deleteAllForUser, [payload.id]);
+    console.log('Todos los tokens del usuario invalidados');
 
     const newRefreshToken = signRefreshToken({ id: payload.id, role: payload.role });
     const accessToken = signAccessToken({ id: payload.id, role: payload.role });
@@ -375,7 +366,7 @@ export const refreshToken = async (req, res, next) => {
     
     // Calcular expiración (7 días desde ahora)
     const expiracion = new Date(Date.now() + 7 * 24 * 3600 * 1000);
-    await db.query(AuthTokenQueries.create, [payload.id, newRefreshToken, expiracion]);
+    await db.query(AuthTokenQueries.create, [uuidv4(), payload.id, newRefreshToken, expiracion]);
     console.log('Nuevo refresh token guardado en BD');
 
     const responseData = {
@@ -521,9 +512,9 @@ export const checkCedula = async (req, res, next) => {
     }
 
     // Buscar usuario por cédula
-    const [rows] = await db.query(UsuarioQueries.getByCedula, [cedula]);
+    const rows = await db.query(AuthQueries.getByCedula, [cedula]);
     
-    const exists = rows.length > 0;
+    const exists = rows.rows.length > 0;
     
     res.json({
       success: true,
@@ -531,7 +522,7 @@ export const checkCedula = async (req, res, next) => {
       message: exists 
         ? "Esta cédula ya está registrada en el sistema" 
         : "Cédula disponible",
-      user: exists ? rows[0] : null
+      user: exists ? rows.rows[0] : null
     });
     
   } catch (error) {
@@ -559,9 +550,9 @@ export const checkEmail = async (req, res, next) => {
     }
 
     // Buscar usuario por email
-    const [rows] = await db.query(UsuarioQueries.getByEmail, [email]);
+    const rows = await db.query(AuthQueries.getByEmail, [email]);
     
-    const exists = rows.length > 0;
+    const exists = rows.rows.length > 0;
     
     res.json({
       success: true,
@@ -569,7 +560,7 @@ export const checkEmail = async (req, res, next) => {
       message: exists 
         ? "Este email ya está registrado en el sistema" 
         : "Email disponible",
-      user: exists ? rows[0] : null
+      user: exists ? rows.rows[0] : null
     });
     
   } catch (error) {
@@ -595,25 +586,16 @@ export const validateInvitationCode = async (req, res, next) => {
       });
     }
 
-    const [rows] = await db.query(
-      `SELECT ci.id, ci.codigo, ci.administrador_id, ci.ubicacion_id, ci.fecha_expiracion,
-              u.nombre as admin_nombre, u.email as admin_email,
-              ub.nombre as ubicacion_nombre, ub.ciudad, ub.estado
-       FROM codigos_invitacion ci
-       JOIN usuarios u ON ci.administrador_id = u.id
-       JOIN ubicaciones ub ON ci.ubicacion_id = ub.id
-       WHERE ci.codigo = ? AND ci.esta_activo = 1 AND ci.is_deleted = 0`,
-      [codigo]
-    );
+    const rows = await db.query(InvitationQueries.getByCode, [codigo]);
 
-    if (!rows.length) {
+    if (!rows.rows.length) {
       return res.status(404).json({
         success: false,
         message: 'Código de invitación no válido o no encontrado'
       });
     }
 
-    const codigoData = rows[0];
+    const codigoData = rows.rows[0];
     const ahora = new Date();
     const estaExpirado = codigoData.fecha_expiracion && new Date(codigoData.fecha_expiracion) < ahora;
 
@@ -684,10 +666,10 @@ export const requestPasswordReset = async (req, res, next) => {
 
     console.log('🔍 Buscando usuario en BD...');
     // Verificar que el email existe en la base de datos
-    const [users] = await db.query(UsuarioQueries.getByEmail, [email]);
-    console.log('👥 Usuarios encontrados:', users.length);
+    const users = await db.query(AuthQueries.getByEmail, [email]);
+    console.log('👥 Usuarios encontrados:', users.rows.length);
     
-    if (users.length === 0) {
+    if (users.rows.length === 0) {
       // Email no existe en la base de datos
       console.log('⚠️ Email no encontrado en la base de datos');
       return res.status(404).json({
@@ -696,7 +678,7 @@ export const requestPasswordReset = async (req, res, next) => {
       });
     }
 
-    const user = users[0];
+    const user = users.rows[0];
     console.log('✅ Usuario encontrado:', { id: user.id, email: user.email, nombre: user.nombre });
 
     console.log('🔑 Generando código...');
@@ -725,23 +707,24 @@ export const requestPasswordReset = async (req, res, next) => {
       expires_at: expiresAt
     });
     
+    console.log('🗑️ Invalidando códigos anteriores...');
+    // Invalidar códigos anteriores del usuario
+    await db.query(PasswordResetQueries.invalidateUserCodes, [user.id, email]);
+
+    console.log('💾 Guardando nuevo código...');
+    console.log('📋 Datos a insertar:', {
+      user_id: user.id,
+      email: email,
+      code: resetCode,
+      code_hash: hashedCode,
+      expires_at: expiresAt
+    });
+    
     // Guardar nuevo código
-    const [insertResult] = await db.query(
-      `INSERT INTO password_reset_codes (user_id, email, code, code_hash, expires_at) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [user.id, email, resetCode, hashedCode, expiresAt]
-    );
+    await db.query(PasswordResetQueries.create, [user.id, email, resetCode, hashedCode, expiresAt]);
 
     console.log('🔑 CÓDIGO DE DESARROLLO:', resetCode);
-    console.log('📊 Resultado de inserción:', insertResult);
     console.log('✅ Código guardado exitosamente');
-    
-    // Verificar que se guardó correctamente
-    const [verification] = await db.query(
-      'SELECT * FROM password_reset_codes WHERE email = ? ORDER BY created_at DESC LIMIT 1',
-      [email]
-    );
-    console.log('🔍 Verificación en BD:', verification);
 
     // Enviar email con el código
     try {
@@ -793,24 +776,16 @@ export const verifyResetCode = async (req, res, next) => {
     }
 
     // Buscar código válido
-    const [rows] = await db.query(
-      `SELECT prc.*, u.nombre 
-       FROM password_reset_codes prc
-       JOIN usuarios u ON prc.user_id = u.id
-       WHERE prc.email = ? AND prc.is_used = FALSE AND prc.expires_at > NOW()
-       ORDER BY prc.created_at DESC
-       LIMIT 1`,
-      [email]
-    );
+    const rows = await db.query(PasswordResetQueries.getValidByEmail, [email]);
 
-    if (rows.length === 0) {
+    if (rows.rows.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'El código no es válido o ha expirado. Por favor, solicita un nuevo código.'
       });
     }
 
-    const resetData = rows[0];
+    const resetData = rows.rows[0];
     const hashedInputCode = hashResetCode(code);
 
     // Verificar que el código coincida
@@ -822,10 +797,7 @@ export const verifyResetCode = async (req, res, next) => {
     }
 
     // Marcar código como usado
-    await db.query(
-      'UPDATE password_reset_codes SET is_used = TRUE WHERE id = ?',
-      [resetData.id]
-    );
+    await db.query(PasswordResetQueries.markAsUsed, [resetData.id]);
 
     console.log('Código verificado exitosamente para:', email);
 
@@ -878,27 +850,21 @@ export const resetPassword = async (req, res, next) => {
     }
 
     // Verificar que el usuario existe
-    const [users] = await db.query(UsuarioQueries.getByEmail, [email]);
+    const users = await db.query(AuthQueries.getByEmail, [email]);
     
-    if (users.length === 0) {
+    if (users.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Usuario no encontrado'
       });
     }
 
-    const user = users[0];
+    const user = users.rows[0];
 
     // Verificar que hay un código válido reciente
-    const [recentCodes] = await db.query(
-      `SELECT * FROM password_reset_codes 
-       WHERE email = ? AND is_used = TRUE AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-       ORDER BY created_at DESC
-       LIMIT 1`,
-      [email]
-    );
+    const recentCodes = await db.query(PasswordResetQueries.getRecentUsed, [email]);
 
-    if (recentCodes.length === 0) {
+    if (recentCodes.rows.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'Debes verificar tu código antes de restablecer la contraseña'
@@ -909,7 +875,7 @@ export const resetPassword = async (req, res, next) => {
     const hashedPassword = await bcryptjs.hash(newPassword, 12);
 
     // Actualizar contraseña
-    await db.query(UsuarioQueries.updatePassword, [hashedPassword, user.id]);
+    await db.query(AuthQueries.updatePassword, [hashedPassword, user.id]);
 
     // Invalidar todos los tokens de sesión del usuario
     await db.query(AuthTokenQueries.deleteByUserId, [user.id]);

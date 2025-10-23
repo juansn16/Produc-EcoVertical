@@ -1,5 +1,6 @@
 import db from '../config/db.js';
 import { v4 as uuidv4 } from 'uuid';
+import { NotificationQueries } from '../utils/queries/index.js';
 
 // Crear notificación
 export const createNotification = async (usuario_id, titulo, mensaje, tipo = 'comentario', datos_adicionales = null) => {
@@ -10,11 +11,16 @@ export const createNotification = async (usuario_id, titulo, mensaje, tipo = 'co
     const huerto_id = datos_adicionales?.huerto_id || null;
     const huerto_nombre = datos_adicionales?.huerto_nombre || null;
     
-    await db.execute(
-      `INSERT INTO notificaciones (id, usuario_id, titulo, mensaje, tipo, huerto_id, huerto_nombre, datos_adicionales)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [notificationId, usuario_id, titulo, mensaje, tipo, huerto_id, huerto_nombre, JSON.stringify(datos_adicionales)]
-    );
+    await db.query(NotificationQueries.createNotification, [
+      notificationId, 
+      usuario_id, 
+      titulo, 
+      mensaje, 
+      tipo, 
+      huerto_id, 
+      huerto_nombre, 
+      JSON.stringify(datos_adicionales)
+    ]);
     
     return notificationId;
   } catch (error) {
@@ -31,36 +37,24 @@ export const getUserNotifications = async (req, res) => {
     
     const offset = (page - 1) * limit;
     
-    let whereClause = 'n.usuario_id = ? AND n.is_deleted = 0';
-    let queryParams = [userId];
-    
-    if (solo_no_leidas === 'true') {
-      whereClause += ' AND n.leida = 0';
-    }
+    // Determinar si filtrar por no leídas
+    const filterUnread = solo_no_leidas === 'true' ? false : null; // null = no filtrar, false = solo no leídas
     
     // Obtener notificaciones con información del huerto y usuario que generó la notificación
-    const [notifications] = await db.execute(
-      `SELECT n.*, h.nombre as huerto_nombre, h.tipo as huerto_tipo, h.usuario_creador as huerto_creador,
-              u.nombre as usuario_nombre, u.rol as usuario_rol
-       FROM notificaciones n
-       LEFT JOIN huertos h ON n.huerto_id = h.id
-       LEFT JOIN usuarios u ON n.usuario_id = u.id
-       WHERE ${whereClause}
-       ORDER BY n.created_at DESC
-       LIMIT ? OFFSET ?`,
-      [...queryParams, parseInt(limit), offset]
-    );
+    const notificationsResult = await db.query(NotificationQueries.getUserNotifications, [
+      userId, 
+      filterUnread, 
+      parseInt(limit), 
+      offset
+    ]);
     
     // Obtener total de notificaciones
-    const [totalResult] = await db.execute(
-      `SELECT COUNT(*) as total FROM notificaciones n WHERE ${whereClause}`,
-      queryParams
-    );
+    const totalResult = await db.query(NotificationQueries.countUserNotifications, [userId, filterUnread]);
     
-    const total = totalResult.length > 0 ? totalResult[0].total : 0;
+    const total = totalResult.rows.length > 0 ? totalResult.rows[0].total : 0;
     
     // Parsear datos adicionales si existen y formatear respuesta
-    const notificationsWithData = notifications.map(notification => {
+    const notificationsWithData = notificationsResult.rows.map(notification => {
       const datosAdicionales = notification.datos_adicionales ? 
         JSON.parse(notification.datos_adicionales) : null;
       
@@ -112,12 +106,9 @@ export const markNotificationAsRead = async (req, res) => {
     const userId = req.user.id;
     
     // Verificar que la notificación existe y pertenece al usuario
-    const [notificationResult] = await db.execute(
-      'SELECT * FROM notificaciones WHERE id = ? AND usuario_id = ? AND is_deleted = 0',
-      [notificationId, userId]
-    );
+    const notificationResult = await db.query(NotificationQueries.checkNotificationOwnership, [notificationId, userId]);
     
-    if (notificationResult.length === 0) {
+    if (notificationResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Notificación no encontrada'
@@ -125,10 +116,7 @@ export const markNotificationAsRead = async (req, res) => {
     }
     
     // Marcar como leída
-    await db.execute(
-      'UPDATE notificaciones SET leida = 1, fecha_leida = NOW() WHERE id = ?',
-      [notificationId]
-    );
+    await db.query(NotificationQueries.markNotificationAsRead, [notificationId]);
     
     res.json({
       success: true,
@@ -150,10 +138,7 @@ export const markAllNotificationsAsRead = async (req, res) => {
   try {
     const userId = req.user.id;
     
-    await db.execute(
-      'UPDATE notificaciones SET leida = 1, fecha_leida = NOW() WHERE usuario_id = ? AND leida = 0 AND is_deleted = 0',
-      [userId]
-    );
+    await db.query(NotificationQueries.markAllNotificationsAsRead, [userId]);
     
     res.json({
       success: true,
@@ -175,12 +160,9 @@ export const getUnreadCount = async (req, res) => {
   try {
     const userId = req.user.id;
     
-    const [countResult] = await db.execute(
-      'SELECT COUNT(*) as count FROM notificaciones WHERE usuario_id = ? AND leida = 0 AND is_deleted = 0',
-      [userId]
-    );
+    const countResult = await db.query(NotificationQueries.getUnreadCount, [userId]);
     
-    const unreadCount = countResult.length > 0 ? countResult[0].count : 0;
+    const unreadCount = countResult.rows.length > 0 ? countResult.rows[0].count : 0;
     
     res.json({
       success: true,
@@ -204,12 +186,9 @@ export const deleteNotification = async (req, res) => {
     const userId = req.user.id;
     
     // Verificar que la notificación existe y pertenece al usuario
-    const [notificationResult] = await db.execute(
-      'SELECT * FROM notificaciones WHERE id = ? AND usuario_id = ? AND is_deleted = 0',
-      [notificationId, userId]
-    );
+    const notificationResult = await db.query(NotificationQueries.checkNotificationOwnership, [notificationId, userId]);
     
-    if (notificationResult.length === 0) {
+    if (notificationResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Notificación no encontrada'
@@ -217,10 +196,7 @@ export const deleteNotification = async (req, res) => {
     }
     
     // Soft delete
-    await db.execute(
-      'UPDATE notificaciones SET is_deleted = 1 WHERE id = ?',
-      [notificationId]
-    );
+    await db.query(NotificationQueries.deleteNotification, [notificationId]);
     
     res.json({
       success: true,

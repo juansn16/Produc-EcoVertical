@@ -1,51 +1,32 @@
 import db from '../config/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import { createNotification } from './notificationController.js';
-import { ComentarioInventarioQueries } from '../utils/queries.js';
+import { CommentQueries } from '../utils/queries/index.js';
 import irrigationAlertService from '../services/irrigationAlertService.js';
 
 // Función auxiliar para cancelar alertas de riego cuando se registra un riego
 async function cancelWateringAlerts(huertoId, usuarioId) {
   try {
     // Obtener alertas de riego activas para el huerto
-    const [alerts] = await db.execute(
-      `SELECT ar.id, ar.titulo, ar.huerto_id, h.nombre as huerto_nombre
-       FROM alertas_riego ar
-       LEFT JOIN huertos h ON ar.huerto_id = h.id
-       WHERE ar.huerto_id = ? AND ar.esta_activa = 1 AND ar.is_deleted = 0`,
-      [huertoId]
-    );
+    const alerts = await db.query(CommentQueries.getActiveWateringAlerts, [huertoId]);
 
-    if (alerts.length === 0) {
+    if (alerts.rows.length === 0) {
       return; // No hay alertas activas
     }
 
     // Actualizar última fecha de riego en las alertas
-    const alertIds = alerts.map(alert => alert.id);
-    const placeholders = alertIds.map(() => '?').join(',');
-
-    await db.execute(
-      `UPDATE alertas_riego 
-       SET ultimo_riego = NOW(), proximo_riego = DATE_ADD(NOW(), INTERVAL 1 DAY)
-       WHERE id IN (${placeholders})`,
-      alertIds
-    );
+    const alertIds = alerts.rows.map(alert => alert.id);
+    
+    await db.query(CommentQueries.updateWateringAlertDates, [alertIds]);
 
     // Obtener todos los técnicos y administradores que tienen acceso al huerto
-    const [usuariosHuerto] = await db.execute(
-      `SELECT DISTINCT uh.usuario_id, u.nombre as usuario_nombre
-       FROM usuario_huerto uh
-       LEFT JOIN usuarios u ON uh.usuario_id = u.id
-       WHERE uh.huerto_id = ? AND uh.is_deleted = 0 AND u.is_deleted = 0 
-       AND u.rol IN ('administrador', 'tecnico') AND uh.usuario_id != ?`,
-      [huertoId, usuarioId]
-    );
+    const usuariosHuerto = await db.query(CommentQueries.getGardenTechUsers, [huertoId, usuarioId]);
 
     // Crear notificaciones de cancelación para cada alerta
     const notificacionesPromises = [];
     
-    alerts.forEach(alert => {
-      usuariosHuerto.forEach(usuario => {
+    alerts.rows.forEach(alert => {
+      usuariosHuerto.rows.forEach(usuario => {
         const tituloNotificacion = `Alerta de riego cancelada - ${alert.huerto_nombre}`;
         const mensajeNotificacion = `La alerta "${alert.titulo}" ha sido cancelada automáticamente porque se registró un riego en el huerto "${alert.huerto_nombre}".`;
         
@@ -71,7 +52,7 @@ async function cancelWateringAlerts(huertoId, usuarioId) {
 
     await Promise.all(notificacionesPromises);
     
-    console.log(`Alertas de riego canceladas para huerto ${huertoId}:`, alerts.length);
+    console.log(`Alertas de riego canceladas para huerto ${huertoId}:`, alerts.rows.length);
     
   } catch (error) {
     console.error('Error en cancelWateringAlerts:', error);
@@ -111,12 +92,9 @@ export const createComment = async (req, res) => {
     const userId = req.user.id;
     
     // Verificar que el huerto existe
-    const [huertoResult] = await db.execute(
-      'SELECT * FROM huertos WHERE id = ? AND is_deleted = 0',
-      [huerto_id]
-    );
+    const huertoResult = await db.query(CommentQueries.checkGardenExists, [huerto_id]);
     
-    if (huertoResult.length === 0) {
+    if (huertoResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
@@ -134,11 +112,9 @@ export const createComment = async (req, res) => {
     
     // Crear el comentario
     const commentId = uuidv4();
-    const [commentResult] = await db.execute(
-      `INSERT INTO comentarios (id, huerto_id, usuario_id, contenido, tipo_comentario, fecha_creacion, cambio_tierra, nombre_siembra)
-       VALUES (?, ?, ?, ?, ?, NOW(), ?, ?)`,
-      [commentId, huerto_id, userId, contenido, tipo_comentario || 'general', cambio_tierra || null, nombre_siembra || null]
-    );
+    await db.query(CommentQueries.create, [
+      commentId, huerto_id, userId, contenido, tipo_comentario || 'general', cambio_tierra || null, nombre_siembra || null
+    ]);
     
     // Mapear nivel de plaga a un valor numérico si se envía el nuevo formato
     let cantidadPlagasCalculada = cantidad_plagas || 0;
@@ -160,31 +136,26 @@ export const createComment = async (req, res) => {
     // Si hay datos estadísticos, crear registro en huerto_data
     if (cantidad_agua || cantidad_siembra || cantidad_cosecha || cantidad_abono || cantidadPlagasCalculada || plaga_especie || plaga_nivel || cantidad_mantenimiento || huerto_siembra_id) {
       const dataId = uuidv4();
-      await db.execute(
-        `INSERT INTO huerto_data (id, comentario_id, huerto_id, fecha, cantidad_agua, unidad_agua, cantidad_siembra, 
-         cantidad_cosecha, cantidad_abono, unidad_abono, cantidad_plagas, cantidad_mantenimiento, unidad_mantenimiento, plaga_especie, plaga_nivel, siembra_relacionada, huerto_siembra_id, usuario_registro)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          dataId,
-          commentId,  // ✨ Ligar directamente con el comentario
-          huerto_id,
-          fecha_actividad || new Date().toISOString().split('T')[0],
-          cantidad_agua || 0,
-          unidad_agua || 'ml',  // ✨ Unidad de agua (ml por defecto)
-          cantidad_siembra || 0,
-          cantidad_cosecha || 0,
-          cantidad_abono || 0,
-          unidad_abono || 'kg',
-          cantidadPlagasCalculada,
-          cantidad_mantenimiento || 0,
-          unidad_mantenimiento || 'minutos',
-          plaga_especie || null,
-          plaga_nivel || null,
-          siembra_relacionada || null,  // ✨ Relación siembra-cosecha
-          huerto_siembra_id || null,    // ✨ Relación huerto-siembra para otros tipos
-          userId
-        ]
-      );
+      await db.query(CommentQueries.createGardenData, [
+        dataId,
+        commentId,  // ✨ Ligar directamente con el comentario
+        huerto_id,
+        fecha_actividad || new Date().toISOString().split('T')[0],
+        cantidad_agua || 0,
+        unidad_agua || 'ml',  // ✨ Unidad de agua (ml por defecto)
+        cantidad_siembra || 0,
+        cantidad_cosecha || 0,
+        cantidad_abono || 0,
+        unidad_abono || 'kg',
+        cantidadPlagasCalculada,
+        cantidad_mantenimiento || 0,
+        unidad_mantenimiento || 'minutos',
+        plaga_especie || null,
+        plaga_nivel || null,
+        siembra_relacionada || null,  // ✨ Relación siembra-cosecha
+        huerto_siembra_id || null,    // ✨ Relación huerto-siembra para otros tipos
+        userId
+      ]);
 
       // Si se registró un riego (cantidad_agua > 0), cancelar alertas de riego activas
       if (cantidad_agua && cantidad_agua > 0) {
@@ -198,38 +169,16 @@ export const createComment = async (req, res) => {
     }
     
     // Obtener el comentario creado con información del usuario y datos estadísticos
-    const [commentData] = await db.execute(
-      `SELECT 
-         c.*, 
-         u.nombre as usuario_nombre, 
-         u.rol as usuario_rol,
-         hd.cantidad_agua,
-         hd.unidad_agua,
-         hd.cantidad_siembra,
-         hd.cantidad_cosecha,
-         hd.cantidad_abono,
-         hd.cantidad_plagas,
-         hd.plaga_especie,
-         hd.plaga_nivel,
-         hd.siembra_relacionada,
-         c.cambio_tierra,
-         c.nombre_siembra,
-         hd.huerto_siembra_id
-       FROM comentarios c
-       LEFT JOIN usuarios u ON c.usuario_id = u.id
-       LEFT JOIN huerto_data hd ON c.id = hd.comentario_id AND hd.is_deleted = 0
-       WHERE c.id = ?`,
-      [commentId]
-    );
+    const commentData = await db.query(CommentQueries.getByIdWithData, [commentId]);
     
     // Mapear nivel textual de plagas si hay cantidad_plagas y agregar campos por defecto
-    if (commentData.length > 0) {
-      if (commentData[0].tipo_comentario === 'plagas') {
-        const v = parseInt(commentData[0].cantidad_plagas || 0);
-        commentData[0].plaga_nivel_texto = v === 3 ? 'muchos' : v === 2 ? 'medio' : v === 1 ? 'pocos' : null;
+    if (commentData.rows.length > 0) {
+      if (commentData.rows[0].tipo_comentario === 'plagas') {
+        const v = parseInt(commentData.rows[0].cantidad_plagas || 0);
+        commentData.rows[0].plaga_nivel_texto = v === 3 ? 'muchos' : v === 2 ? 'medio' : v === 1 ? 'pocos' : null;
         // Si no hay cantidad_plagas pero sí hay plaga_nivel directo, usarlo
-        if (!commentData[0].plaga_nivel_texto && commentData[0].plaga_nivel) {
-          commentData[0].plaga_nivel_texto = commentData[0].plaga_nivel;
+        if (!commentData.rows[0].plaga_nivel_texto && commentData.rows[0].plaga_nivel) {
+          commentData.rows[0].plaga_nivel_texto = commentData.rows[0].plaga_nivel;
         }
       }
       
@@ -237,35 +186,26 @@ export const createComment = async (req, res) => {
     }
     
     // Obtener información del huerto para las notificaciones
-    const [huertoData] = await db.execute(
-      'SELECT nombre FROM huertos WHERE id = ?',
-      [huerto_id]
-    );
+    const huertoData = await db.query('SELECT nombre FROM huertos WHERE id = $1', [huerto_id]);
     
-    const huertoNombre = huertoData.length > 0 ? huertoData[0].nombre : 'Huerto';
+    const huertoNombre = huertoData.rows.length > 0 ? huertoData.rows[0].nombre : 'Huerto';
     
     // Obtener todos los usuarios que tienen acceso al huerto (excepto el que creó el comentario)
-    const [usuariosHuerto] = await db.execute(
-      `SELECT DISTINCT uh.usuario_id, u.nombre as usuario_nombre
-       FROM usuario_huerto uh
-       LEFT JOIN usuarios u ON uh.usuario_id = u.id
-       WHERE uh.huerto_id = ? AND uh.usuario_id != ? AND uh.is_deleted = 0 AND u.is_deleted = 0`,
-      [huerto_id, userId]
-    );
+    const usuariosHuerto = await db.query(CommentQueries.getGardenUsersForNotification, [huerto_id, userId]);
     
     // Crear notificaciones para todos los usuarios del huerto
-    const notificacionesPromises = usuariosHuerto.map(async (usuario) => {
+    const notificacionesPromises = usuariosHuerto.rows.map(async (usuario) => {
       try {
         const titulo = `Nuevo comentario en ${huertoNombre}`;
-        const mensaje = `${commentData[0].usuario_nombre} ha agregado un comentario en el huerto "${huertoNombre}": "${contenido.substring(0, 100)}${contenido.length > 100 ? '...' : ''}"`;
+        const mensaje = `${commentData.rows[0].usuario_nombre} ha agregado un comentario en el huerto "${huertoNombre}": "${contenido.substring(0, 100)}${contenido.length > 100 ? '...' : ''}"`;
         
         const datosAdicionales = {
           huerto_id: huerto_id,
           huerto_nombre: huertoNombre,
           comentario_id: commentId,
           autor_id: userId,
-          autor_nombre: commentData[0].usuario_nombre,
-          autor_rol: commentData[0].usuario_rol,
+          autor_nombre: commentData.rows[0].usuario_nombre,
+          autor_rol: commentData.rows[0].usuario_rol,
           tipo_comentario: tipo_comentario || 'general'
         };
         
@@ -286,7 +226,7 @@ export const createComment = async (req, res) => {
     await Promise.all(notificacionesPromises);
     
     // Enviar notificaciones en tiempo real a usuarios conectados
-    const realtimePromises = usuariosHuerto.map(async (usuario) => {
+    const realtimePromises = usuariosHuerto.rows.map(async (usuario) => {
       try {
         await irrigationAlertService.sendRealtimeNotification(
           usuario.usuario_id,
@@ -297,9 +237,9 @@ export const createComment = async (req, res) => {
             huerto_nombre: huertoNombre,
             comentario_id: commentId,
             autor_id: userId,
-            autor_nombre: commentData[0].usuario_nombre,
-            autor_rol: commentData[0].usuario_rol,
-            mensaje: `${commentData[0].usuario_nombre} ha agregado un comentario en el huerto "${huertoNombre}": "${contenido.substring(0, 100)}${contenido.length > 100 ? '...' : ''}"`,
+            autor_nombre: commentData.rows[0].usuario_nombre,
+            autor_rol: commentData.rows[0].usuario_rol,
+            mensaje: `${commentData.rows[0].usuario_nombre} ha agregado un comentario en el huerto "${huertoNombre}": "${contenido.substring(0, 100)}${contenido.length > 100 ? '...' : ''}"`,
             timestamp: new Date().toISOString()
           }
         );
@@ -315,7 +255,7 @@ export const createComment = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Comentario creado exitosamente',
-      data: commentData[0]
+      data: commentData.rows[0]
     });
   } catch (error) {
     console.error('Error al crear comentario:', error);
@@ -338,12 +278,9 @@ export const getCommentsByGarden = async (req, res) => {
     const offset = (page - 1) * limit;
     
     // Verificar que el huerto existe
-    const [huertoResult] = await db.execute(
-      'SELECT * FROM huertos WHERE id = ? AND is_deleted = 0',
-      [huerto_id]
-    );
+    const huertoResult = await db.query(CommentQueries.checkGardenExists, [huerto_id]);
     
-    if (huertoResult.length === 0) {
+    if (huertoResult.rows.length === 0) {
       console.log('Huerto no encontrado:', huerto_id);
       return res.status(404).json({
         success: false,
@@ -354,36 +291,10 @@ export const getCommentsByGarden = async (req, res) => {
     console.log('Huerto encontrado, buscando comentarios...');
     
     // Obtener comentarios con información del usuario - COLUMNA CORREGIDA
-    const [comments] = await db.execute(
-      `SELECT 
-         c.*, 
-         u.nombre as usuario_nombre, 
-         u.rol as usuario_rol,
-         hd.cantidad_agua,
-         hd.unidad_agua,
-         hd.cantidad_siembra,
-         hd.cantidad_cosecha,
-         hd.cantidad_abono,
-         hd.cantidad_plagas,
-         hd.cantidad_mantenimiento,
-         hd.unidad_mantenimiento,
-         hd.plaga_especie,
-         hd.plaga_nivel,
-         hd.siembra_relacionada,
-         c.cambio_tierra,
-         c.nombre_siembra,
-         hd.huerto_siembra_id
-       FROM comentarios c
-       LEFT JOIN usuarios u ON c.usuario_id = u.id
-       LEFT JOIN huerto_data hd ON c.id = hd.comentario_id AND hd.is_deleted = 0
-       WHERE c.huerto_id = ? AND c.is_deleted = 0
-       ORDER BY c.fecha_creacion DESC
-       LIMIT ? OFFSET ?`,
-      [huerto_id, parseInt(limit), offset]
-    );
+    const comments = await db.query(CommentQueries.getByGarden, [huerto_id, parseInt(limit), offset]);
 
     // Mapear nivel textual de plagas si hay cantidad_plagas y agregar campos por defecto
-    const mapped = comments.map((c) => {
+    const mapped = comments.rows.map((c) => {
       if (c.tipo_comentario === 'plagas') {
         const v = parseInt(c.cantidad_plagas || 0);
         c.plaga_nivel_texto = v === 3 ? 'muchos' : v === 2 ? 'medio' : v === 1 ? 'pocos' : null;
@@ -405,15 +316,12 @@ export const getCommentsByGarden = async (req, res) => {
       return c;
     });
     
-    console.log('Comentarios encontrados:', comments.length);
+    console.log('Comentarios encontrados:', comments.rows.length);
     
     // Obtener total de comentarios
-    const [totalResult] = await db.execute(
-      'SELECT COUNT(*) as total FROM comentarios WHERE huerto_id = ? AND is_deleted = 0',
-      [huerto_id]
-    );
+    const totalResult = await db.query(CommentQueries.countByGarden, [huerto_id]);
     
-    const total = totalResult.length > 0 ? totalResult[0].total : 0;
+    const total = totalResult.rows.length > 0 ? totalResult.rows[0].total : 0;
     
     console.log('Total de comentarios:', total);
     
@@ -471,19 +379,16 @@ export const updateComment = async (req, res) => {
     const userId = req.user.id;
     
     // Verificar que el comentario existe y pertenece al usuario
-    const [commentResult] = await db.execute(
-      'SELECT * FROM comentarios WHERE id = ? AND is_deleted = 0',
-      [commentId]
-    );
+    const commentResult = await db.query(CommentQueries.getById, [commentId]);
     
-    if (commentResult.length === 0) {
+    if (commentResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Comentario no encontrado'
       });
     }
     
-    const comment = commentResult[0];
+    const comment = commentResult.rows[0];
     
     // Solo el autor del comentario o un administrador puede editarlo
     if (comment.usuario_id !== userId && req.user.rol !== 'administrador') {
@@ -494,46 +399,28 @@ export const updateComment = async (req, res) => {
     }
     
     // Actualizar el comentario
-    await db.execute(
-      'UPDATE comentarios SET contenido = ?, tipo_comentario = ?, fecha_actualizacion = NOW(), cambio_tierra = ?, nombre_siembra = ? WHERE id = ?',
-      [contenido, tipo_comentario || comment.tipo_comentario, cambio_tierra || null, nombre_siembra || null, commentId]
-    );
+    await db.query(CommentQueries.update, [
+      contenido, tipo_comentario || comment.tipo_comentario, cambio_tierra || null, nombre_siembra || null, commentId
+    ]);
 
     // Obtener información del huerto y usuario para las notificaciones
-    const [huertoData] = await db.execute(
-      `SELECT h.nombre as huerto_nombre, h.usuario_creador as huerto_creador, h.ubicacion_id
-       FROM comentarios c
-       JOIN huertos h ON c.huerto_id = h.id
-       WHERE c.id = ?`,
-      [commentId]
-    );
+    const huertoData = await db.query(CommentQueries.getGardenInfoForNotification, [commentId]);
 
-    const [usuarioData] = await db.execute(
-      `SELECT nombre as usuario_nombre, rol as usuario_rol
-       FROM usuarios
-       WHERE id = ?`,
-      [userId]
-    );
+    const usuarioData = await db.query(CommentQueries.getUserInfoForNotification, [userId]);
 
-    if (huertoData.length > 0 && usuarioData.length > 0) {
-      const huertoNombre = huertoData[0].huerto_nombre;
-      const huertoCreador = huertoData[0].huerto_creador;
-      const usuarioNombre = usuarioData[0].usuario_nombre;
-      const usuarioRol = usuarioData[0].usuario_rol;
+    if (huertoData.rows.length > 0 && usuarioData.rows.length > 0) {
+      const huertoNombre = huertoData.rows[0].huerto_nombre;
+      const huertoCreador = huertoData.rows[0].huerto_creador;
+      const usuarioNombre = usuarioData.rows[0].usuario_nombre;
+      const usuarioRol = usuarioData.rows[0].usuario_rol;
 
       // Solo notificar si el que edita NO es el dueño del huerto
       if (userId !== huertoCreador) {
         // Obtener todos los usuarios que tienen acceso al huerto (excepto el que editó)
-        const [usuariosHuerto] = await db.execute(
-          `SELECT DISTINCT uh.usuario_id, u.nombre as usuario_nombre
-           FROM usuario_huerto uh
-           LEFT JOIN usuarios u ON uh.usuario_id = u.id
-           WHERE uh.huerto_id = ? AND uh.usuario_id != ? AND uh.is_deleted = 0 AND u.is_deleted = 0`,
-          [comment.huerto_id, userId]
-        );
+        const usuariosHuerto = await db.query(CommentQueries.getGardenUsersForNotification, [comment.huerto_id, userId]);
 
         // Crear notificaciones para todos los usuarios del huerto
-        const notificacionesPromises = usuariosHuerto.map(async (usuario) => {
+        const notificacionesPromises = usuariosHuerto.rows.map(async (usuario) => {
           try {
             const titulo = `Comentario editado en ${huertoNombre}`;
             const mensaje = `${usuarioNombre} ha editado un comentario en el huerto "${huertoNombre}": "${contenido.substring(0, 100)}${contenido.length > 100 ? '...' : ''}"`;
@@ -565,7 +452,7 @@ export const updateComment = async (req, res) => {
         await Promise.all(notificacionesPromises);
 
         // Enviar notificaciones en tiempo real a usuarios conectados
-        const realtimePromises = usuariosHuerto.map(async (usuario) => {
+        const realtimePromises = usuariosHuerto.rows.map(async (usuario) => {
           try {
             await irrigationAlertService.sendRealtimeNotification(
               usuario.usuario_id,
@@ -603,106 +490,70 @@ export const updateComment = async (req, res) => {
     // Actualizar o crear datos en huerto_data
     if (cantidad_agua || cantidad_siembra || cantidad_cosecha || cantidad_abono || cantidadPlagasCalculada || plaga_especie || plaga_nivel) {
       // Verificar si ya existe un registro de datos para este comentario
-      const [existingData] = await db.execute(
-        'SELECT id FROM huerto_data WHERE comentario_id = ? AND is_deleted = 0',
-        [commentId]
-      );
+      const existingData = await db.query(CommentQueries.checkExistingGardenData, [commentId]);
       
-      if (existingData.length > 0) {
+      if (existingData.rows.length > 0) {
         // Actualizar registro existente
-        await db.execute(
-          `UPDATE huerto_data SET 
-           cantidad_agua = ?, unidad_agua = ?, cantidad_siembra = ?, cantidad_cosecha = ?, cantidad_abono = ?, unidad_abono = ?,
-           cantidad_plagas = ?, cantidad_mantenimiento = ?, unidad_mantenimiento = ?, plaga_especie = ?, plaga_nivel = ?, siembra_relacionada = ?, huerto_siembra_id = ?, fecha = ?
-           WHERE comentario_id = ? AND is_deleted = 0`,
-          [
-            cantidad_agua || 0,
-            unidad_agua || 'ml',
-            cantidad_siembra || 0,
-            cantidad_cosecha || 0,
-            cantidad_abono || 0,
-            unidad_abono || 'kg',
-            cantidadPlagasCalculada,
-            cantidad_mantenimiento || 0,
-            unidad_mantenimiento || 'minutos',
-            plaga_especie || null,
-            plaga_nivel || null,
-            siembra_relacionada || null,  // ✨ Relación siembra-cosecha
-            huerto_siembra_id || null,    // ✨ Relación huerto-siembra para otros tipos
-            fecha_actividad || new Date().toISOString().split('T')[0],
-            commentId
-          ]
-        );
+        await db.query(CommentQueries.updateGardenData, [
+          cantidad_agua || 0,
+          unidad_agua || 'ml',
+          cantidad_siembra || 0,
+          cantidad_cosecha || 0,
+          cantidad_abono || 0,
+          unidad_abono || 'kg',
+          cantidadPlagasCalculada,
+          cantidad_mantenimiento || 0,
+          unidad_mantenimiento || 'minutos',
+          plaga_especie || null,
+          plaga_nivel || null,
+          siembra_relacionada || null,  // ✨ Relación siembra-cosecha
+          huerto_siembra_id || null,    // ✨ Relación huerto-siembra para otros tipos
+          fecha_actividad || new Date().toISOString().split('T')[0],
+          commentId
+        ]);
       } else {
         // Crear nuevo registro
         const dataId = uuidv4();
-        await db.execute(
-          `INSERT INTO huerto_data (id, comentario_id, huerto_id, fecha, cantidad_agua, unidad_agua, cantidad_siembra, 
-           cantidad_cosecha, cantidad_abono, unidad_abono, cantidad_plagas, cantidad_mantenimiento, unidad_mantenimiento, plaga_especie, plaga_nivel, siembra_relacionada, huerto_siembra_id, usuario_registro)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            dataId,
-            commentId,
-            comment.huerto_id,
-            fecha_actividad || new Date().toISOString().split('T')[0],
-            cantidad_agua || 0,
-            unidad_agua || 'ml',
-            cantidad_siembra || 0,
-            cantidad_cosecha || 0,
-            cantidad_abono || 0,
-            unidad_abono || 'kg',
-            cantidadPlagasCalculada,
-            cantidad_mantenimiento || 0,
-            unidad_mantenimiento || 'minutos',
-            plaga_especie || null,
-            plaga_nivel || null,
-            siembra_relacionada || null,  // ✨ Relación siembra-cosecha
-            huerto_siembra_id || null,    // ✨ Relación huerto-siembra para otros tipos
-            userId
-          ]
-        );
+        await db.query(CommentQueries.createGardenData, [
+          dataId,
+          commentId,
+          comment.huerto_id,
+          fecha_actividad || new Date().toISOString().split('T')[0],
+          cantidad_agua || 0,
+          unidad_agua || 'ml',
+          cantidad_siembra || 0,
+          cantidad_cosecha || 0,
+          cantidad_abono || 0,
+          unidad_abono || 'kg',
+          cantidadPlagasCalculada,
+          cantidad_mantenimiento || 0,
+          unidad_mantenimiento || 'minutos',
+          plaga_especie || null,
+          plaga_nivel || null,
+          siembra_relacionada || null,  // ✨ Relación siembra-cosecha
+          huerto_siembra_id || null,    // ✨ Relación huerto-siembra para otros tipos
+          userId
+        ]);
       }
     }
     
     // Obtener el comentario actualizado con datos
-    const [updatedComment] = await db.execute(
-      `SELECT 
-         c.*, 
-         u.nombre as usuario_nombre, 
-         u.rol as usuario_rol,
-         hd.cantidad_agua,
-         hd.unidad_agua,
-         hd.cantidad_siembra,
-         hd.cantidad_cosecha,
-         hd.cantidad_abono,
-         hd.cantidad_plagas,
-         hd.plaga_especie,
-         hd.plaga_nivel,
-         hd.siembra_relacionada,
-         c.cambio_tierra,
-         c.nombre_siembra,
-         hd.huerto_siembra_id
-       FROM comentarios c
-       LEFT JOIN usuarios u ON c.usuario_id = u.id
-       LEFT JOIN huerto_data hd ON c.id = hd.comentario_id AND hd.is_deleted = 0
-       WHERE c.id = ?`,
-      [commentId]
-    );
+    const updatedComment = await db.query(CommentQueries.getByIdWithData, [commentId]);
     
     // Mapear nivel textual de plagas si hay cantidad_plagas
-    if (updatedComment.length > 0 && updatedComment[0].tipo_comentario === 'plagas') {
-      const v = parseInt(updatedComment[0].cantidad_plagas || 0);
-      updatedComment[0].plaga_nivel_texto = v === 3 ? 'muchos' : v === 2 ? 'medio' : v === 1 ? 'pocos' : null;
+    if (updatedComment.rows.length > 0 && updatedComment.rows[0].tipo_comentario === 'plagas') {
+      const v = parseInt(updatedComment.rows[0].cantidad_plagas || 0);
+      updatedComment.rows[0].plaga_nivel_texto = v === 3 ? 'muchos' : v === 2 ? 'medio' : v === 1 ? 'pocos' : null;
       // Si no hay cantidad_plagas pero sí hay plaga_nivel directo, usarlo
-      if (!updatedComment[0].plaga_nivel_texto && updatedComment[0].plaga_nivel) {
-        updatedComment[0].plaga_nivel_texto = updatedComment[0].plaga_nivel;
+      if (!updatedComment.rows[0].plaga_nivel_texto && updatedComment.rows[0].plaga_nivel) {
+        updatedComment.rows[0].plaga_nivel_texto = updatedComment.rows[0].plaga_nivel;
       }
     }
     
     res.json({
       success: true,
       message: 'Comentario actualizado exitosamente',
-      data: updatedComment[0]
+      data: updatedComment.rows[0]
     });
   } catch (error) {
     console.error('Error al actualizar comentario:', error);
@@ -721,19 +572,16 @@ export const deleteComment = async (req, res) => {
     const userId = req.user.id;
     
     // Verificar que el comentario existe
-    const [commentResult] = await db.execute(
-      'SELECT * FROM comentarios WHERE id = ? AND is_deleted = 0',
-      [commentId]
-    );
+    const commentResult = await db.query(CommentQueries.getById, [commentId]);
     
-    if (commentResult.length === 0) {
+    if (commentResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Comentario no encontrado'
       });
     }
     
-    const comment = commentResult[0];
+    const comment = commentResult.rows[0];
     
     // Solo el autor del comentario o un administrador puede eliminarlo
     if (comment.usuario_id !== userId && req.user.rol !== 'administrador') {
@@ -744,46 +592,26 @@ export const deleteComment = async (req, res) => {
     }
     
     // Soft delete
-    await db.execute(
-      'UPDATE comentarios SET is_deleted = 1 WHERE id = ?',
-      [commentId]
-    );
+    await db.query(CommentQueries.delete, [commentId]);
 
     // Obtener información del huerto y usuario para las notificaciones
-    const [huertoData] = await db.execute(
-      `SELECT h.nombre as huerto_nombre, h.usuario_creador as huerto_creador, h.ubicacion_id
-       FROM comentarios c
-       JOIN huertos h ON c.huerto_id = h.id
-       WHERE c.id = ?`,
-      [commentId]
-    );
+    const huertoData = await db.query(CommentQueries.getGardenInfoForNotification, [commentId]);
 
-    const [usuarioData] = await db.execute(
-      `SELECT nombre as usuario_nombre, rol as usuario_rol
-       FROM usuarios
-       WHERE id = ?`,
-      [userId]
-    );
+    const usuarioData = await db.query(CommentQueries.getUserInfoForNotification, [userId]);
 
-    if (huertoData.length > 0 && usuarioData.length > 0) {
-      const huertoNombre = huertoData[0].huerto_nombre;
-      const huertoCreador = huertoData[0].huerto_creador;
-      const usuarioNombre = usuarioData[0].usuario_nombre;
-      const usuarioRol = usuarioData[0].usuario_rol;
+    if (huertoData.rows.length > 0 && usuarioData.rows.length > 0) {
+      const huertoNombre = huertoData.rows[0].huerto_nombre;
+      const huertoCreador = huertoData.rows[0].huerto_creador;
+      const usuarioNombre = usuarioData.rows[0].usuario_nombre;
+      const usuarioRol = usuarioData.rows[0].usuario_rol;
 
       // Solo notificar si el que elimina NO es el dueño del huerto
       if (userId !== huertoCreador) {
         // Obtener todos los usuarios que tienen acceso al huerto (excepto el que eliminó)
-        const [usuariosHuerto] = await db.execute(
-          `SELECT DISTINCT uh.usuario_id, u.nombre as usuario_nombre
-           FROM usuario_huerto uh
-           LEFT JOIN usuarios u ON uh.usuario_id = u.id
-           WHERE uh.huerto_id = ? AND uh.usuario_id != ? AND uh.is_deleted = 0 AND u.is_deleted = 0`,
-          [comment.huerto_id, userId]
-        );
+        const usuariosHuerto = await db.query(CommentQueries.getGardenUsersForNotification, [comment.huerto_id, userId]);
 
         // Crear notificaciones para todos los usuarios del huerto
-        const notificacionesPromises = usuariosHuerto.map(async (usuario) => {
+        const notificacionesPromises = usuariosHuerto.rows.map(async (usuario) => {
           try {
             const titulo = `Comentario eliminado en ${huertoNombre}`;
             const mensaje = `${usuarioNombre} ha eliminado un comentario en el huerto "${huertoNombre}"`;
@@ -815,7 +643,7 @@ export const deleteComment = async (req, res) => {
         await Promise.all(notificacionesPromises);
 
         // Enviar notificaciones en tiempo real a usuarios conectados
-        const realtimePromises = usuariosHuerto.map(async (usuario) => {
+        const realtimePromises = usuariosHuerto.rows.map(async (usuario) => {
           try {
             await irrigationAlertService.sendRealtimeNotification(
               usuario.usuario_id,
@@ -862,12 +690,9 @@ export const getCommentStats = async (req, res) => {
     const { huerto_id } = req.params;
     
     // Verificar que el huerto existe
-    const [huertoResult] = await db.execute(
-      'SELECT * FROM huertos WHERE id = ? AND is_deleted = 0',
-      [huerto_id]
-    );
+    const huertoResult = await db.query(CommentQueries.checkGardenExists, [huerto_id]);
     
-    if (huertoResult.length === 0) {
+    if (huertoResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
@@ -875,22 +700,11 @@ export const getCommentStats = async (req, res) => {
     }
     
     // Obtener estadísticas de comentarios
-    const [statsResult] = await db.execute(
-      `SELECT 
-         COUNT(*) as total_comentarios,
-         COUNT(DISTINCT usuario_id) as usuarios_activos,
-         tipo_comentario,
-         DATE(fecha_creacion) as fecha
-       FROM comentarios 
-       WHERE huerto_id = ? AND is_deleted = 0
-       GROUP BY tipo_comentario, DATE(fecha_creacion)
-       ORDER BY fecha DESC`,
-      [huerto_id]
-    );
+    const statsResult = await db.query(CommentQueries.getStatsByGarden, [huerto_id]);
     
     res.json({
       success: true,
-      data: statsResult || [] // Asegurar que siempre devuelva un array
+      data: statsResult.rows || [] // Asegurar que siempre devuelva un array
     });
   } catch (error) {
     console.error('Error al obtener estadísticas de comentarios:', error);
@@ -913,12 +727,9 @@ export const getInventoryUsageComments = async (req, res) => {
     const offset = (page - 1) * limit;
     
     // Verificar que el item de inventario existe
-    const [inventoryResult] = await db.execute(
-      'SELECT * FROM inventario WHERE id = ? AND is_deleted = 0',
-      [inventory_id]
-    );
+    const inventoryResult = await db.query(CommentQueries.checkInventoryExists, [inventory_id]);
     
-    if (inventoryResult.length === 0) {
+    if (inventoryResult.rows.length === 0) {
       console.log('❌ Item de inventario no encontrado:', inventory_id);
       return res.status(404).json({
         success: false,
@@ -929,15 +740,12 @@ export const getInventoryUsageComments = async (req, res) => {
     console.log('✅ Item de inventario encontrado, buscando comentarios...');
     
     // Obtener comentarios de uso del inventario con información del usuario
-    const [comments] = await db.execute(
-      ComentarioInventarioQueries.getByInventarioWithUser,
-      [inventory_id]
-    );
+    const comments = await db.query(CommentQueries.getInventoryCommentsWithUser, [inventory_id]);
     
-    console.log(`📊 Encontrados ${comments.length} comentarios de uso`);
+    console.log(`📊 Encontrados ${comments.rows.length} comentarios de uso`);
     
     // Filtrar solo comentarios de tipo 'uso' (comentarios automáticos de uso)
-    const usageComments = comments.filter(comment => 
+    const usageComments = comments.rows.filter(comment => 
       comment.tipo_comentario === 'uso'
     );
     

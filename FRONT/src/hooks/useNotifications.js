@@ -14,6 +14,7 @@ export const useNotifications = () => {
       setUnreadCount(response.data.unreadCount);
     } catch (error) {
       console.error('Error al cargar contador de notificaciones:', error);
+      // No actualizar el estado en caso de error para mantener el valor anterior
     }
   }, []);
 
@@ -87,13 +88,13 @@ export const useNotifications = () => {
     }
   }, []);
 
-  // Cargar contador al montar el componente y cada 2 minutos
+  // Cargar contador al montar el componente y cada 5 minutos
   useEffect(() => {
     loadUnreadCount();
     
     const interval = setInterval(() => {
       loadUnreadCount();
-    }, 120000); // 2 minutos
+    }, 300000); // 5 minutos - menos agresivo
     
     return () => clearInterval(interval);
   }, [loadUnreadCount]);

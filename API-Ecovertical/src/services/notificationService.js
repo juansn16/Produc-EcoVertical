@@ -44,19 +44,20 @@ class NotificationService {
       const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
 
       // Obtener alertas que necesitan notificación
-      const [alertas] = await db.execute(
+      const result = await db.query(
         `SELECT 
           apr.*,
           h.nombre as huerto_nombre,
           h.tipo as huerto_tipo
         FROM alertas_programadas_riego apr
         INNER JOIN huertos h ON apr.huerto_id = h.id
-        WHERE apr.esta_activa = 1 
-          AND apr.notificacion_enviada = 0
-          AND apr.fecha_programada BETWEEN ? AND ?
-          AND apr.is_deleted = 0`,
+        WHERE apr.esta_activa = true 
+          AND apr.notificacion_enviada = false
+          AND apr.fecha_programada BETWEEN $1 AND $2
+          AND apr.is_deleted = false`,
         [now, tenMinutesFromNow]
       );
+      const alertas = result.rows;
 
       console.log(`Encontradas ${alertas.length} alertas que necesitan notificación`);
 
@@ -78,13 +79,14 @@ class NotificationService {
   async sendWateringNotification(alerta) {
     try {
       // Obtener todos los usuarios del condominio
-      const [usuarios] = await db.execute(
+      const result = await db.query(
         `SELECT DISTINCT u.id, u.nombre, u.email, u.telefono 
          FROM usuarios u 
          INNER JOIN usuario_huerto uh ON u.id = uh.usuario_id 
-         WHERE uh.huerto_id = ? AND u.is_deleted = 0 AND uh.is_deleted = 0`,
+         WHERE uh.huerto_id = $1 AND u.is_deleted = 0 AND uh.is_deleted = 0`,
         [alerta.huerto_id]
       );
+      const usuarios = result.rows;
 
       console.log(`Enviando notificación de riego a ${usuarios.length} usuarios`);
 
@@ -99,8 +101,8 @@ class NotificationService {
       }
 
       // Marcar la alerta como notificada
-      await db.execute(
-        'UPDATE alertas_programadas_riego SET notificacion_enviada = 1, fecha_notificacion_enviada = NOW() WHERE id = ?',
+      await db.query(
+        'UPDATE alertas_programadas_riego SET notificacion_enviada = true, fecha_notificacion_enviada = NOW() WHERE id = $1',
         [alerta.id]
       );
 
@@ -122,11 +124,11 @@ class NotificationService {
       `Duración: ${alerta.duracion_minutos} minutos\n\n` +
       `¡Es hora de regar el huerto comunitario! 🌿💧`;
 
-    await db.execute(
+    await db.query(
       `INSERT INTO notificaciones_alertas_riego (
         id, alerta_programada_id, usuario_id, tipo_notificacion, 
         mensaje, metodo_envio
-      ) VALUES (?, ?, ?, ?, ?, ?)`,
+      ) VALUES ($1, $2, $3, $4, $5, $6)`,
       [notificacionId, alerta.id, usuario.id, 'recordatorio', mensaje, 'sistema']
     );
   }

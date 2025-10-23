@@ -1,17 +1,18 @@
-import mysql from "mysql2/promise";
+import pkg from 'pg';
 import dotenv from "dotenv";
 
+const { Pool } = pkg;
 dotenv.config();
 
-const db = mysql.createPool({
+const db = new Pool({
   host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 3305,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASS || '',
+  port: process.env.DB_PORT || 5432,
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASS || 'ubiquiti',
   database: process.env.DB_NAME || 'huertos',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 });
 
 export default db;
