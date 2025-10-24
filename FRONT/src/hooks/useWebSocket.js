@@ -52,36 +52,9 @@ const useWebSocket = () => {
       
       console.log('🔌 Configuración de conexión:', connectionOptions);
       
-      // Usar la URL de la API sin el /api para Socket.IO
+      // Usar variable de entorno específica para Socket.IO
+      const socketUrl = import.meta.env.VITE_SOCKET_URL || 'https://api-ecovertical.onrender.com';
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-      
-      // Construir la URL del socket de forma más robusta
-      let socketUrl;
-      try {
-        console.log('🔍 URL original:', apiUrl);
-        
-        // Si la URL contiene /api, quitarlo
-        if (apiUrl.includes('/api')) {
-          socketUrl = apiUrl.replace('/api', '');
-        } else {
-          socketUrl = apiUrl;
-        }
-        
-        // Limpiar la URL
-        socketUrl = socketUrl.replace(/\/$/, ''); // Quitar barra final
-        socketUrl = socketUrl.replace(/\/+$/, ''); // Quitar múltiples barras finales
-        
-        // Validar que la URL sea válida
-        new URL(socketUrl); // Esto lanzará error si la URL es inválida
-        
-        console.log('✅ URL procesada correctamente:', socketUrl);
-        
-      } catch (error) {
-        console.error('❌ URL inválida:', apiUrl, error);
-        // Fallback directo a la URL conocida
-        socketUrl = 'https://api-ecovertical.onrender.com';
-        console.log('🔄 Usando fallback:', socketUrl);
-      }
       
       console.log('🔌 API URL:', apiUrl);
       console.log('🔌 Socket URL:', socketUrl);
