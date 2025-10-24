@@ -49,6 +49,13 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       assetsDir: 'assets',
     },
+    // Configuración para el servidor de desarrollo
+    preview: {
+      port: 4173,
+      strictPort: true,
+      // Configurar para que todas las rutas sirvan index.html
+      historyApiFallback: true,
+    },
     css: {
       preprocessorOptions: {
         css: {

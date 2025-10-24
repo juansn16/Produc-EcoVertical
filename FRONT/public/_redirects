@@ -1,1 +1,5 @@
+# Render.com configuration for SPA routing
+# This file tells Render to serve index.html for all routes
+
+# Redirect all routes to index.html with 200 status
 /*    /index.html   200

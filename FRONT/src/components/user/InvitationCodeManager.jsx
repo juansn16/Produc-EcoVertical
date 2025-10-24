@@ -44,12 +44,17 @@ function InvitationCodeManager() {
       setIsLoading(true);
       setError('');
       
-      const response = await fetch('/api/invitation-codes/current', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+      const response = await fetch(`${apiUrl}/invitation-codes/current`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       
       const data = await response.json();
       
@@ -73,7 +78,8 @@ function InvitationCodeManager() {
       setError('');
       setSuccess('');
       
-      const response = await fetch('/api/invitation-codes', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+      const response = await fetch(`${apiUrl}/invitation-codes`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -83,6 +89,10 @@ function InvitationCodeManager() {
           expiracion_dias: 7
         }),
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       
       const data = await response.json();
       
@@ -110,13 +120,18 @@ function InvitationCodeManager() {
       setError('');
       setSuccess('');
       
-      const response = await fetch(`/api/invitation-codes/${currentCode.id}`, {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+      const response = await fetch(`${apiUrl}/invitation-codes/${currentCode.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       
       const data = await response.json();
       
