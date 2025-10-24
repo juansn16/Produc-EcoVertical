@@ -801,7 +801,7 @@ export const getUserGardens = async (req, res) => {
       
       const adminLocationId = adminResult.rows[0].ubicacion_id;
       
-      gardens = await db.query(GardenQueries.getUserGardens, [userId, userId, adminLocationId]);
+      gardens = await db.query(GardenQueries.getUserGardens, [userId, adminLocationId]);
     } else {
       // Otros usuarios solo ven huertos donde están asignados
       gardens = await db.query(GardenQueries.getUserAssignedGardens, [userId]);
