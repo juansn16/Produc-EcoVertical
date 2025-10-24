@@ -42,7 +42,13 @@ function SignUpForm({ onRegister, isLoading = false, onClearError }) {
     setCedulaError("");
 
     try {
-      const response = await fetch(`/api/auth/check-cedula?cedula=${cedula}`);
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+      const response = await fetch(`${apiUrl}/auth/check-cedula?cedula=${cedula}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       
       if (data.exists) {
@@ -73,13 +79,18 @@ function SignUpForm({ onRegister, isLoading = false, onClearError }) {
     setCodigoInfo(null);
 
     try {
-      const response = await fetch('/api/auth/validate-invitation-code', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+      const response = await fetch(`${apiUrl}/auth/validate-invitation-code`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ codigo }),
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       
       const data = await response.json();
       
