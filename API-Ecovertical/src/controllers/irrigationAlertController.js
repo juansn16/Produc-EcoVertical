@@ -20,26 +20,21 @@ export const createIrrigationAlert = async (req, res, next) => {
     }
 
     // Validar que la fecha y hora no sean en el pasado
-    // Crear fecha considerando zona horaria del servidor
     const alertDateTime = new Date(`${fecha_alerta}T${hora_alerta}:00`);
     const now = new Date();
-    
-    // Agregar margen de 1 minuto para evitar problemas de sincronización
-    const marginTime = new Date(now.getTime() + 60000); // 1 minuto
     
     console.log('🕐 Validación de fecha:', {
       fecha_alerta,
       hora_alerta,
       alertDateTime: alertDateTime.toISOString(),
       now: now.toISOString(),
-      marginTime: marginTime.toISOString(),
-      isValid: alertDateTime > marginTime
+      isValid: alertDateTime > now
     });
     
-    if (alertDateTime <= marginTime) {
+    if (alertDateTime <= now) {
       return res.status(400).json({
         success: false,
-        message: 'La fecha y hora de la alerta no pueden ser en el pasado o muy próximas al momento actual'
+        message: 'La fecha y hora de la alerta no pueden ser en el pasado'
       });
     }
 
@@ -502,6 +497,22 @@ export const getConnectedUsers = async (req, res, next) => {
       });
     }
 
+    // Debug: Verificar estado de la tabla usuarios_conectados
+    console.log(`🔍 Debug - Usuario autenticado: ${userId}, Condominio: ${userLocationId}`);
+    
+    // Verificar si hay registros en la tabla usuarios_conectados
+    const debugResult = await db.query(
+      `SELECT COUNT(*) as total FROM usuarios_conectados`
+    );
+    console.log(`📊 Total registros en usuarios_conectados: ${debugResult.rows[0].total}`);
+
+    // Verificar registros del usuario actual
+    const userDebugResult = await db.query(
+      `SELECT * FROM usuarios_conectados WHERE usuario_id = $1`,
+      [userId]
+    );
+    console.log(`👤 Registros del usuario actual: ${userDebugResult.rows.length}`);
+
     // Obtener usuarios conectados del mismo condominio desde el servicio
     const connectedUsers = await irrigationAlertService.getConnectedUsers(userLocationId);
 
@@ -512,7 +523,12 @@ export const getConnectedUsers = async (req, res, next) => {
         totalConnections: connectedUsers.length,
         uniqueUsers: [...new Set(connectedUsers.map(u => u.usuario_id))].length,
         condominio: userLocationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        debug: {
+          totalRecordsInTable: debugResult.rows[0].total,
+          currentUserRecords: userDebugResult.rows.length,
+          serviceStats: irrigationAlertService.getStats()
+        }
       }
     });
 

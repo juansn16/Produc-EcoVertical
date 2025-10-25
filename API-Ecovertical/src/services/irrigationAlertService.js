@@ -105,6 +105,7 @@ class IrrigationAlertService {
 
       // Registrar usuario automáticamente cuando se conecta
       if (socket.userId) {
+        console.log(`🔐 Usuario autenticado conectándose: ${socket.userId} (socket: ${socket.id})`);
         this.onlineUsers.set(socket.userId, socket.id);
         this.saveUserConnection(socket.userId, socket.id)
           .then(() => {
@@ -115,6 +116,8 @@ class IrrigationAlertService {
             console.error('Error registrando usuario:', error);
             socket.emit('userRegistered', { success: false, error: error.message });
           });
+      } else {
+        console.log(`🔓 Conexión sin autenticación: ${socket.id}`);
       }
 
       // Registrar usuario cuando se conecta (método manual)
@@ -186,12 +189,11 @@ class IrrigationAlertService {
     try {
       // Usar ON CONFLICT para manejar duplicados de manera atómica
       await db.query(
-        `INSERT INTO usuarios_conectados (id, usuario_id, socket_id, fecha_conexion, ultima_actividad) 
-         VALUES ($1, $2, $3, NOW(), NOW())
+        `INSERT INTO usuarios_conectados (id, usuario_id, socket_id, fecha_conexion) 
+         VALUES ($1, $2, $3, NOW())
          ON CONFLICT (usuario_id) DO UPDATE SET 
            socket_id = EXCLUDED.socket_id,
-           fecha_conexion = NOW(),
-           ultima_actividad = NOW()`,
+           fecha_conexion = NOW()`,
         [uuidv4(), userId, socketId]
       );
       console.log(`✅ Conexión guardada para usuario: ${userId}`);
@@ -225,24 +227,14 @@ class IrrigationAlertService {
     try {
       const result = await db.query(
         `DELETE FROM usuarios_conectados 
-         WHERE fecha_conexion < NOW() - INTERVAL '1 HOUR'
-         OR ultima_actividad < NOW() - INTERVAL '1 HOUR'`
+         WHERE fecha_conexion < NOW() - INTERVAL '1 HOUR'`
       );
       
       if (result.rowCount > 0) {
         console.log(`🧹 Conexiones inactivas limpiadas: ${result.rowCount} registros eliminados`);
       }
     } catch (error) {
-      // Si las columnas no existen, usar estructura básica
-      try {
-        const result = await db.query(
-          `DELETE FROM usuarios_conectados 
-           WHERE socket_id NOT IN (SELECT DISTINCT socket_id FROM usuarios_conectados LIMIT 100)`
-        );
-        console.log(`🧹 Limpieza básica completada: ${result.rowCount || 0} registros`);
-      } catch (fallbackError) {
-        console.error('Error en limpieza de conexiones:', fallbackError);
-      }
+      console.error('Error en limpieza de conexiones:', error);
     }
   }
 
@@ -972,6 +964,9 @@ class IrrigationAlertService {
    */
   async getConnectedUsers(userLocationId = null) {
     try {
+      console.log(`🔍 Obteniendo usuarios conectados para condominio: ${userLocationId}`);
+      console.log(`📊 Usuarios en memoria: ${this.onlineUsers.size}`);
+      
       const connectedUsers = [];
       
       // Construir la consulta base
@@ -993,14 +988,24 @@ class IrrigationAlertService {
       
       query += ` ORDER BY uc.fecha_conexion DESC`;
       
+      console.log(`📝 Query ejecutada:`, query);
+      console.log(`📝 Parámetros:`, params);
+      
       // Obtener información de usuarios conectados desde la base de datos
       const result = await db.query(query, params);
       const users = result.rows;
+
+      console.log(`📊 Usuarios encontrados en BD: ${users.length}`);
+      users.forEach(user => {
+        console.log(`  - ${user.nombre} (${user.usuario_id}) - ${user.fecha_conexion}`);
+      });
 
       // Agregar información adicional de cada usuario
       for (const user of users) {
         const isOnline = this.onlineUsers.has(user.usuario_id);
         const socketId = this.onlineUsers.get(user.usuario_id);
+        
+        console.log(`👤 Usuario ${user.nombre}: isOnline=${isOnline}, socketId=${socketId}`);
         
         connectedUsers.push({
           usuario_id: user.usuario_id,
@@ -1016,6 +1021,7 @@ class IrrigationAlertService {
         });
       }
 
+      console.log(`✅ Total usuarios conectados retornados: ${connectedUsers.length}`);
       return connectedUsers;
     } catch (error) {
       console.error('Error obteniendo usuarios conectados:', error);
