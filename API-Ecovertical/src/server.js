@@ -7,9 +7,13 @@ import keepAliveService from "./utils/keepAlive.js";
 
 dotenv.config();
 
-// Configurar zona horaria para Venezuela
-process.env.TZ = 'America/Caracas';
-console.log(`🌍 Zona horaria configurada: ${process.env.TZ}`);
+// Configurar zona horaria desde variable de entorno
+if (process.env.TZ) {
+  console.log(`🌍 Zona horaria configurada: ${process.env.TZ}`);
+} else {
+  process.env.TZ = 'America/Caracas';
+  console.log(`🌍 Zona horaria por defecto: ${process.env.TZ}`);
+}
 
 const PORT = process.env.PORT || 3000;
 
