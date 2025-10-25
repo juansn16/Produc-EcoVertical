@@ -13,6 +13,17 @@ const db = new Pool({
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+// Configurar zona horaria de Venezuela en PostgreSQL
+db.on('connect', async (client) => {
+  try {
+    await client.query("SET timezone = 'America/Caracas'");
+    console.log('🌍 Zona horaria de PostgreSQL configurada: America/Caracas');
+  } catch (error) {
+    console.error('❌ Error configurando zona horaria de PostgreSQL:', error.message);
+  }
 });
 
 export default db;

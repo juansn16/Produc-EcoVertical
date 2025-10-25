@@ -12,17 +12,10 @@ import dotenv from 'dotenv';
 // Cargar variables de entorno
 dotenv.config();
 
-// Crear conexión usando la misma configuración que el resto de la aplicación
+// Crear conexión directa a la base de datos de producción
 const db = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASS || 'ubiquiti',
-  database: process.env.DB_NAME || 'huertos',
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  connectionString: 'postgresql://huertos_user:Z4MBJlvnx7d4cAig4MQ44apsMwml8Nog@dpg-d3tslsbipnbc738hc1n0-a.oregon-postgres.render.com/huertos',
+  ssl: { rejectUnauthorized: false }
 });
 
 // Si no hay variables de entorno, usar configuración por defecto
@@ -30,12 +23,11 @@ if (!process.env.DB_HOST) {
   console.log('⚠️ No se encontraron variables de entorno, usando configuración por defecto');
 }
 
-console.log('🔗 Conectando a la base de datos...');
-console.log(`📍 Host: ${process.env.DB_HOST || 'localhost'}`);
-console.log(`📍 Puerto: ${process.env.DB_PORT || 5432}`);
-console.log(`📍 Usuario: ${process.env.DB_USER || 'postgres'}`);
-console.log(`📍 Base de datos: ${process.env.DB_NAME || 'huertos'}`);
-console.log(`🌍 Entorno: ${process.env.NODE_ENV || 'development'}`);
+console.log('🔗 Conectando a la base de datos de PRODUCCIÓN...');
+console.log(`📍 Host: dpg-d3tslsbipnbc738hc1n0-a.oregon-postgres.render.com`);
+console.log(`📍 Usuario: huertos_user`);
+console.log(`📍 Base de datos: huertos`);
+console.log(`🌍 Entorno: PRODUCCIÓN`);
 
 async function diagnoseConnectedUsersTable() {
   try {
