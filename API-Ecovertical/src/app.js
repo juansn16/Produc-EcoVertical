@@ -7,6 +7,7 @@ import { createServer } from "http";
 
 import allRoutes from "./routes/allRoutes.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
+import irrigationAlertService from "./services/irrigationAlertService.js";
 
 dotenv.config();
 
@@ -23,6 +24,20 @@ app.get("/api/health", (req, res) => {
   res.json({ 
     status: "OK", 
     message: "API EcoVertical funcionando correctamente",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    websocket: {
+      connected: irrigationAlertService ? irrigationAlertService.getStats().connectedSockets : 0,
+      onlineUsers: irrigationAlertService ? irrigationAlertService.getStats().onlineUsers : 0
+    }
+  });
+});
+
+// Endpoint de ping para mantener servicio activo en Render
+app.get("/api/ping", (req, res) => {
+  res.json({ 
+    status: "pong", 
     timestamp: new Date().toISOString()
   });
 });

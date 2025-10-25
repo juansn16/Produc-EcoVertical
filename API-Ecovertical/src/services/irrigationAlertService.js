@@ -29,10 +29,17 @@ class IrrigationAlertService {
         methods: ["GET", "POST"],
         credentials: true
       },
-      transports: ['websocket', 'polling'],
+      // Configuración optimizada para Render
+      transports: ['polling', 'websocket'], // Polling primero para mejor compatibilidad
       allowEIO3: true,
-      pingTimeout: 60000,
-      pingInterval: 25000
+      pingTimeout: 20000, // Reducido para detectar desconexiones más rápido
+      pingInterval: 10000, // Ping más frecuente para mantener conexión activa
+      upgradeTimeout: 10000, // Timeout más corto para upgrades
+      maxHttpBufferSize: 1e6, // Buffer más pequeño para mejor rendimiento
+      // Configuración específica para Render
+      serveClient: false, // No servir cliente para reducir carga
+      allowUpgrades: true,
+      perMessageDeflate: false // Deshabilitar compresión para mejor rendimiento
     });
 
     // Middleware de autenticación (temporalmente deshabilitado para debugging)
@@ -86,14 +93,22 @@ class IrrigationAlertService {
    */
   setupEventHandlers() {
     this.io.on('connection', (socket) => {
-      // Usuario conectado
+      console.log(`🔌 Nueva conexión WebSocket: ${socket.id}`);
+      
+      // Configurar heartbeat para mantener conexión activa en Render
+      socket.heartbeatInterval = setInterval(() => {
+        if (socket.connected) {
+          socket.emit('ping');
+          console.log(`💓 Heartbeat enviado a ${socket.id}`);
+        }
+      }, 30000); // Cada 30 segundos
 
       // Registrar usuario automáticamente cuando se conecta
       if (socket.userId) {
         this.onlineUsers.set(socket.userId, socket.id);
         this.saveUserConnection(socket.userId, socket.id)
           .then(() => {
-            // Usuario registrado en línea
+            console.log(`✅ Usuario registrado en línea: ${socket.userId}`);
             socket.emit('userRegistered', { success: true, userId: socket.userId });
           })
           .catch(error => {
@@ -126,15 +141,28 @@ class IrrigationAlertService {
         }
       });
 
+      // Manejar pong del cliente
+      socket.on('pong', () => {
+        console.log(`💓 Pong recibido de ${socket.id}`);
+      });
+
       // Manejar desconexión
       socket.on('disconnect', async () => {
         try {
+          console.log(`🔌 Desconexión WebSocket: ${socket.id}`);
+          
+          // Limpiar heartbeat
+          if (socket.heartbeatInterval) {
+            clearInterval(socket.heartbeatInterval);
+            socket.heartbeatInterval = null;
+          }
+          
           // Encontrar y remover usuario desconectado
           for (const [userId, socketId] of this.onlineUsers.entries()) {
             if (socketId === socket.id) {
               this.onlineUsers.delete(userId);
               await this.removeUserConnection(userId);
-              // Usuario desconectado
+              console.log(`🗑️ Usuario desconectado: ${userId}`);
               break;
             }
           }

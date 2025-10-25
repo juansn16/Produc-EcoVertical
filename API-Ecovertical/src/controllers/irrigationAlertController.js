@@ -20,13 +20,26 @@ export const createIrrigationAlert = async (req, res, next) => {
     }
 
     // Validar que la fecha y hora no sean en el pasado
+    // Crear fecha considerando zona horaria del servidor
     const alertDateTime = new Date(`${fecha_alerta}T${hora_alerta}:00`);
     const now = new Date();
     
-    if (alertDateTime <= now) {
+    // Agregar margen de 1 minuto para evitar problemas de sincronización
+    const marginTime = new Date(now.getTime() + 60000); // 1 minuto
+    
+    console.log('🕐 Validación de fecha:', {
+      fecha_alerta,
+      hora_alerta,
+      alertDateTime: alertDateTime.toISOString(),
+      now: now.toISOString(),
+      marginTime: marginTime.toISOString(),
+      isValid: alertDateTime > marginTime
+    });
+    
+    if (alertDateTime <= marginTime) {
       return res.status(400).json({
         success: false,
-        message: 'La fecha y hora de la alerta no pueden ser en el pasado'
+        message: 'La fecha y hora de la alerta no pueden ser en el pasado o muy próximas al momento actual'
       });
     }
 

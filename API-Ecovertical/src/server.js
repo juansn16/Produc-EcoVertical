@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import notificationService from "./services/notificationService.js";
 import notificationScheduler from "./services/notificationScheduler.js";
 import irrigationAlertService from "./services/irrigationAlertService.js";
+import keepAliveService from "./utils/keepAlive.js";
 
 dotenv.config();
 
@@ -23,6 +24,10 @@ server.listen(PORT, () => {
   // Inicializar servicio de alertas de riego con WebSocket
   irrigationAlertService.initialize(server);
   console.log(`💧 Servicio de alertas de riego iniciado`);
+  
+  // Iniciar servicio keep-alive para Render
+  keepAliveService.start();
+  console.log(`💓 Servicio keep-alive iniciado`);
 });
 
 // Manejo de cierre graceful
@@ -31,6 +36,7 @@ process.on('SIGINT', () => {
   notificationService.stop();
   notificationScheduler.stop();
   irrigationAlertService.stop();
+  keepAliveService.stop();
   process.exit(0);
 });
 
@@ -39,6 +45,7 @@ process.on('SIGTERM', () => {
   notificationService.stop();
   notificationScheduler.stop();
   irrigationAlertService.stop();
+  keepAliveService.stop();
   process.exit(0);
 });
 

@@ -28,18 +28,21 @@ const useWebSocket = () => {
       const token = localStorage.getItem('token');
       console.log('🔍 Token encontrado:', token ? 'Sí' : 'No');
       
-      // Crear conexión WebSocket (configuración robusta)
+      // Crear conexión WebSocket (configuración optimizada para Render)
       const connectionOptions = {
-        transports: ['polling', 'websocket'],
-        timeout: 60000, // 60 segundos para conexión inicial
+        transports: ['polling', 'websocket'], // Polling primero para mejor compatibilidad con Render
+        timeout: 30000, // 30 segundos para conexión inicial
         forceNew: true,
         reconnection: true,
-        reconnectionAttempts: 5, // Reducir intentos para evitar spam
-        reconnectionDelay: 5000, // 5 segundos entre intentos
-        reconnectionDelayMax: 20000, // Máximo 20 segundos
+        reconnectionAttempts: 10, // Más intentos para Render
+        reconnectionDelay: 2000, // 2 segundos entre intentos
+        reconnectionDelayMax: 10000, // Máximo 10 segundos
         autoConnect: true,
         upgrade: true,
-        rememberUpgrade: false
+        rememberUpgrade: false,
+        // Configuración específica para Render
+        pingTimeout: 20000,
+        pingInterval: 10000
       };
       
       // Solo agregar auth si hay token
@@ -72,6 +75,12 @@ const useWebSocket = () => {
         if (user.id) {
           socketRef.current.emit('registerUser', user.id);
         }
+      });
+
+      // Manejar heartbeat del servidor
+      socketRef.current.on('ping', () => {
+        console.log('💓 Ping recibido del servidor');
+        socketRef.current.emit('pong');
       });
 
       socketRef.current.on('disconnect', (reason) => {
