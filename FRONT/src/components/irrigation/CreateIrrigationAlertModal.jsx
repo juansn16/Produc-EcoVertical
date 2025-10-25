@@ -78,20 +78,16 @@ const CreateIrrigationAlertModal = ({ onClose, onSubmit, refreshTrigger }) => {
     const alertDateTime = new Date(`${formData.fecha_alerta}T${formData.hora_alerta}:00`);
     const now = new Date();
     
-    // Agregar margen de 2 minutos para evitar problemas de sincronización
-    const marginTime = new Date(now.getTime() + 120000); // 2 minutos
-    
     console.log('🕐 Validación frontend:', {
       fecha_alerta: formData.fecha_alerta,
       hora_alerta: formData.hora_alerta,
       alertDateTime: alertDateTime.toISOString(),
       now: now.toISOString(),
-      marginTime: marginTime.toISOString(),
-      isValid: alertDateTime > marginTime
+      isValid: alertDateTime > now
     });
     
-    if (alertDateTime <= marginTime) {
-      setError('La fecha y hora de la alerta no pueden ser en el pasado o muy próximas al momento actual');
+    if (alertDateTime <= now) {
+      setError('La fecha y hora de la alerta no pueden ser en el pasado');
       return false;
     }
 
@@ -132,23 +128,15 @@ const CreateIrrigationAlertModal = ({ onClose, onSubmit, refreshTrigger }) => {
 
   const getMinDateTime = () => {
     const now = new Date();
-    // Agregar 2 minutos para evitar problemas de sincronización
-    const minTime = new Date(now.getTime() + 120000);
-    
-    // Si es muy temprano en el día, usar el día actual con hora mínima
-    // Si no, usar el día siguiente
-    const isEarlyDay = now.getHours() < 6;
-    const targetDate = isEarlyDay ? now : new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    
-    const year = targetDate.getFullYear();
-    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-    const day = String(targetDate.getDate()).padStart(2, '0');
-    const hours = String(minTime.getHours()).padStart(2, '0');
-    const minutes = String(minTime.getMinutes()).padStart(2, '0');
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
     
     return {
       date: `${year}-${month}-${day}`,
-      time: isEarlyDay ? `${hours}:${minutes}` : '08:00'
+      time: `${hours}:${minutes}`
     };
   };
 
