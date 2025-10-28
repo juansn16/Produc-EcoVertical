@@ -189,11 +189,12 @@ class IrrigationAlertService {
     try {
       // Usar ON CONFLICT para manejar duplicados de manera atómica
       await db.query(
-        `INSERT INTO usuarios_conectados (id, usuario_id, socket_id, fecha_conexion) 
-         VALUES ($1, $2, $3, NOW())
+        `INSERT INTO usuarios_conectados (id, usuario_id, socket_id, fecha_conexion, ultima_actividad) 
+         VALUES ($1, $2, $3, NOW(), NOW())
          ON CONFLICT (usuario_id) DO UPDATE SET 
            socket_id = EXCLUDED.socket_id,
-           fecha_conexion = NOW()`,
+           fecha_conexion = NOW(),
+           ultima_actividad = NOW()`,
         [uuidv4(), userId, socketId]
       );
       console.log(`✅ Conexión guardada para usuario: ${userId}`);
@@ -345,7 +346,7 @@ class IrrigationAlertService {
       }
     } catch (error) {
       // Manejo silencioso de errores de conexión
-      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') {
+      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET' || error.code === 'ENOTFOUND') {
         // No logear errores de conexión para evitar spam en consola
         return;
       }
@@ -385,7 +386,7 @@ class IrrigationAlertService {
       }
     } catch (error) {
       // Manejo silencioso de errores de conexión
-      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') {
+      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET' || error.code === 'ENOTFOUND') {
         // No logear errores de conexión para evitar spam en consola
         return;
       }

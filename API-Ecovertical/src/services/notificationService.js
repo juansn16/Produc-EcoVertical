@@ -67,7 +67,7 @@ class NotificationService {
 
     } catch (error) {
       // Manejo silencioso de errores de conexión
-      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') {
+      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET' || error.code === 'ENOTFOUND') {
         // No logear errores de conexión para evitar spam en consola
         return;
       }

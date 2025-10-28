@@ -11,6 +11,28 @@ export const errorHandler = (err, req, res, next) => {
 		method: req.method
 	});
 	
+	// Manejar errores de conexión a la base de datos
+	if (err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT' || err.code === 'ENOTFOUND' || err.code === '28000') {
+		console.error('⚠️ Error de conexión a la base de datos:', err.code);
+		
+		// Mensaje específico para error de SSL
+		if (err.code === '28000') {
+			return res.status(503).json({
+				success: false,
+				message: "Error de configuración de conexión segura con la base de datos",
+				error: "DATABASE_SSL_ERROR",
+				code: err.code
+			});
+		}
+		
+		return res.status(503).json({
+			success: false,
+			message: "Error temporal de conexión con la base de datos",
+			error: "DATABASE_CONNECTION_ERROR",
+			code: err.code
+		});
+	}
+	
 	// Manejar errores específicos de PostgreSQL
 	if (err.code === '23505') { // UNIQUE VIOLATION
 		if (err.detail?.includes('cedula')) {

@@ -4,6 +4,15 @@ import dotenv from "dotenv";
 const { Pool } = pkg;
 dotenv.config();
 
+// Determinar si se debe usar SSL (Render.com requiere SSL)
+const requiresSSL = process.env.NODE_ENV === 'production' || 
+                     process.env.DB_HOST?.includes('render.com') ||
+                     process.env.DB_HOST?.includes('postgres.render.com');
+
+if (requiresSSL) {
+  console.log('🔒 SSL habilitado para la conexión a PostgreSQL');
+}
+
 const db = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 5432,
@@ -15,7 +24,7 @@ const db = new Pool({
   connectionTimeoutMillis: 5000,
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: requiresSSL ? { rejectUnauthorized: false } : false
 });
 
 // Configurar zona horaria desde variable de entorno en PostgreSQL
