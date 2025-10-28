@@ -403,19 +403,35 @@ export const updateComment = async (req, res) => {
       contenido, tipo_comentario || comment.tipo_comentario, cambio_tierra || null, nombre_siembra || null, commentId
     ]);
 
-    // Obtener información del huerto y usuario para las notificaciones
-    let huertoData, usuarioData;
+    // Obtener el comentario actualizado inmediatamente
+    let updatedComment;
     try {
-      huertoData = await db.query(CommentQueries.getGardenInfoForNotification, [commentId]);
-      usuarioData = await db.query(CommentQueries.getUserInfoForNotification, [userId]);
-    } catch (notificationError) {
-      console.error('Error obteniendo datos para notificaciones:', notificationError);
-      // Continuar sin las notificaciones
-      huertoData = { rows: [] };
-      usuarioData = { rows: [] };
+      updatedComment = await db.query(CommentQueries.getByIdWithData, [commentId]);
+    } catch (queryError) {
+      console.error('Error obteniendo comentario actualizado:', queryError);
+      // Retornar el comentario básico actualizado como fallback
+      const basicComment = await db.query(CommentQueries.getById, [commentId]);
+      return res.json({
+        success: true,
+        message: 'Comentario actualizado exitosamente',
+        data: basicComment.rows[0]
+      });
     }
 
-    if (huertoData.rows.length > 0 && usuarioData.rows.length > 0) {
+    // Obtener información del huerto y usuario para las notificaciones (sin bloquear la respuesta)
+    try {
+      let huertoData, usuarioData;
+      try {
+        huertoData = await db.query(CommentQueries.getGardenInfoForNotification, [commentId]);
+        usuarioData = await db.query(CommentQueries.getUserInfoForNotification, [userId]);
+      } catch (notificationError) {
+        console.error('Error obteniendo datos para notificaciones:', notificationError);
+        // Continuar sin las notificaciones
+        huertoData = { rows: [] };
+        usuarioData = { rows: [] };
+      }
+
+      if (huertoData.rows.length > 0 && usuarioData.rows.length > 0) {
       const huertoNombre = huertoData.rows[0].huerto_nombre;
       const huertoCreador = huertoData.rows[0].huerto_creador;
       const usuarioNombre = usuarioData.rows[0].usuario_nombre;
@@ -484,21 +500,26 @@ export const updateComment = async (req, res) => {
         // Ejecutar notificaciones en tiempo real en paralelo
         await Promise.all(realtimePromises);
       }
+      }
+    } catch (notificationProcessError) {
+      console.error('Error procesando notificaciones:', notificationProcessError);
+      // Continuar sin bloquear la respuesta
     }
     
-    // Mapear nivel de plaga a un valor numérico si se envía el nuevo formato
-    let cantidadPlagasCalculada = cantidad_plagas || 0;
-    if (tipo_comentario === 'plagas' && plaga_nivel) {
-      const niveles = { pocos: 1, medio: 2, muchos: 3 };
-      cantidadPlagasCalculada = niveles[plaga_nivel] || 0;
-      console.log('🐛 Datos de plagas actualizados:', { plaga_especie, plaga_nivel, cantidadPlagasCalculada });
-    }
-    
-    // Actualizar o crear datos en huerto_data solo si hay datos para actualizar
+    // Procesar datos estadísticos en segundo plano (sin bloquear la respuesta)
     try {
+      // Mapear nivel de plaga a un valor numérico si se envía el nuevo formato
+      let cantidadPlagasCalculada = cantidad_plagas || 0;
+      if (tipo_comentario === 'plagas' && plaga_nivel) {
+        const niveles = { pocos: 1, medio: 2, muchos: 3 };
+        cantidadPlagasCalculada = niveles[plaga_nivel] || 0;
+        console.log('🐛 Datos de plagas actualizados:', { plaga_especie, plaga_nivel, cantidadPlagasCalculada });
+      }
+      
+      // Actualizar o crear datos en huerto_data solo si hay datos para actualizar
       const hasDataToUpdate = cantidad_agua || cantidad_siembra || cantidad_cosecha || cantidad_abono || 
-                                cantidadPlagasCalculada || cantidad_mantenimiento || plaga_especie || plaga_nivel ||
-                                siembra_relacionada || huerto_siembra_id;
+                              cantidadPlagasCalculada || cantidad_mantenimiento || plaga_especie || plaga_nivel ||
+                              siembra_relacionada || huerto_siembra_id;
       
       if (hasDataToUpdate && tipo_comentario !== 'general') {
         // Verificar si ya existe un registro de datos para este comentario
@@ -553,23 +574,8 @@ export const updateComment = async (req, res) => {
       // Continuar sin actualizar los datos estadísticos
     }
     
-    // Obtener el comentario actualizado con datos
-    let updatedComment;
-    try {
-      updatedComment = await db.query(CommentQueries.getByIdWithData, [commentId]);
-    } catch (queryError) {
-      console.error('Error obteniendo comentario actualizado:', queryError);
-      // Retornar el comentario básico actualizado
-      const basicComment = await db.query(CommentQueries.getById, [commentId]);
-      return res.json({
-        success: true,
-        message: 'Comentario actualizado exitosamente',
-        data: basicComment.rows[0]
-      });
-    }
-    
     // Mapear nivel textual de plagas si hay cantidad_plagas
-    if (updatedComment.rows.length > 0 && updatedComment.rows[0].tipo_comentario === 'plagas') {
+    if (updatedComment && updatedComment.rows.length > 0 && updatedComment.rows[0].tipo_comentario === 'plagas') {
       const v = parseInt(updatedComment.rows[0].cantidad_plagas || 0);
       updatedComment.rows[0].plaga_nivel_texto = v === 3 ? 'muchos' : v === 2 ? 'medio' : v === 1 ? 'pocos' : null;
       // Si no hay cantidad_plagas pero sí hay plaga_nivel directo, usarlo
