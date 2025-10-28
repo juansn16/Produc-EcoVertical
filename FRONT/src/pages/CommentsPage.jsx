@@ -45,6 +45,7 @@ export default function CommentsPage() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [editingComment, setEditingComment] = useState(null);
+  const [editingContent, setEditingContent] = useState('');
   const [newComment, setNewComment] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
@@ -1033,7 +1034,10 @@ export default function CommentsPage() {
                       >
                         {canEditComment(comment) && (
                           <button
-                            onClick={() => setEditingComment(editingComment === comment.id ? null : comment.id)}
+                            onClick={() => {
+                              setEditingComment(editingComment === comment.id ? null : comment.id);
+                              setEditingContent(comment.contenido);
+                            }}
                             className="p-1 text-gray-400 dark:text-gray-500 hover:text-[#2E8B57] hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                             title="Editar comentario"
                           >
@@ -1060,13 +1064,14 @@ export default function CommentsPage() {
                       onClick={(e) => e.stopPropagation()}
                     >
                       <textarea
-                        defaultValue={comment.contenido}
+                        value={editingContent}
+                        onChange={(e) => setEditingContent(e.target.value)}
                         className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E8B57] resize-none text-xs"
                         rows="2"
                       />
                       <div className="flex gap-2 mt-2">
                         <button
-                          onClick={() => handleUpdateComment(comment.id, document.querySelector(`textarea[defaultvalue="${comment.contenido}"]`).value)}
+                          onClick={() => handleUpdateComment(comment.id, editingContent)}
                           className="px-2 py-1 bg-[#2E8B57] text-white text-xs rounded-lg hover:bg-[#1f6b3f] transition-colors font-medium"
                         >
                           Guardar

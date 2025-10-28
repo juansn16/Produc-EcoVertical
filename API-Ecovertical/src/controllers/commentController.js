@@ -391,7 +391,7 @@ export const updateComment = async (req, res) => {
     const comment = commentResult.rows[0];
     
     // Solo el autor del comentario o un administrador puede editarlo
-    if (comment.usuario_id !== userId && req.user.rol !== 'administrador') {
+    if (comment.usuario_id !== userId && req.user.role !== 'administrador') {
       return res.status(403).json({
         success: false,
         message: 'No tienes permisos para editar este comentario'
@@ -404,9 +404,16 @@ export const updateComment = async (req, res) => {
     ]);
 
     // Obtener información del huerto y usuario para las notificaciones
-    const huertoData = await db.query(CommentQueries.getGardenInfoForNotification, [commentId]);
-
-    const usuarioData = await db.query(CommentQueries.getUserInfoForNotification, [userId]);
+    let huertoData, usuarioData;
+    try {
+      huertoData = await db.query(CommentQueries.getGardenInfoForNotification, [commentId]);
+      usuarioData = await db.query(CommentQueries.getUserInfoForNotification, [userId]);
+    } catch (notificationError) {
+      console.error('Error obteniendo datos para notificaciones:', notificationError);
+      // Continuar sin las notificaciones
+      huertoData = { rows: [] };
+      usuarioData = { rows: [] };
+    }
 
     if (huertoData.rows.length > 0 && usuarioData.rows.length > 0) {
       const huertoNombre = huertoData.rows[0].huerto_nombre;
@@ -488,57 +495,74 @@ export const updateComment = async (req, res) => {
     }
     
     // Actualizar o crear datos en huerto_data
-    if (cantidad_agua || cantidad_siembra || cantidad_cosecha || cantidad_abono || cantidadPlagasCalculada || plaga_especie || plaga_nivel) {
-      // Verificar si ya existe un registro de datos para este comentario
-      const existingData = await db.query(CommentQueries.checkExistingGardenData, [commentId]);
-      
-      if (existingData.rows.length > 0) {
-        // Actualizar registro existente
-        await db.query(CommentQueries.updateGardenData, [
-          cantidad_agua || 0,
-          unidad_agua || 'ml',
-          cantidad_siembra || 0,
-          cantidad_cosecha || 0,
-          cantidad_abono || 0,
-          unidad_abono || 'kg',
-          cantidadPlagasCalculada,
-          cantidad_mantenimiento || 0,
-          unidad_mantenimiento || 'minutos',
-          plaga_especie || null,
-          plaga_nivel || null,
-          siembra_relacionada || null,  // ✨ Relación siembra-cosecha
-          huerto_siembra_id || null,    // ✨ Relación huerto-siembra para otros tipos
-          fecha_actividad || new Date().toISOString().split('T')[0],
-          commentId
-        ]);
-      } else {
-        // Crear nuevo registro
-        const dataId = uuidv4();
-        await db.query(CommentQueries.createGardenData, [
-          dataId,
-          commentId,
-          comment.huerto_id,
-          fecha_actividad || new Date().toISOString().split('T')[0],
-          cantidad_agua || 0,
-          unidad_agua || 'ml',
-          cantidad_siembra || 0,
-          cantidad_cosecha || 0,
-          cantidad_abono || 0,
-          unidad_abono || 'kg',
-          cantidadPlagasCalculada,
-          cantidad_mantenimiento || 0,
-          unidad_mantenimiento || 'minutos',
-          plaga_especie || null,
-          plaga_nivel || null,
-          siembra_relacionada || null,  // ✨ Relación siembra-cosecha
-          huerto_siembra_id || null,    // ✨ Relación huerto-siembra para otros tipos
-          userId
-        ]);
+    try {
+      if (cantidad_agua || cantidad_siembra || cantidad_cosecha || cantidad_abono || cantidadPlagasCalculada || plaga_especie || plaga_nivel) {
+        // Verificar si ya existe un registro de datos para este comentario
+        const existingData = await db.query(CommentQueries.checkExistingGardenData, [commentId]);
+        
+        if (existingData.rows.length > 0) {
+          // Actualizar registro existente
+          await db.query(CommentQueries.updateGardenData, [
+            cantidad_agua || 0,
+            unidad_agua || 'ml',
+            cantidad_siembra || 0,
+            cantidad_cosecha || 0,
+            cantidad_abono || 0,
+            unidad_abono || 'kg',
+            cantidadPlagasCalculada,
+            cantidad_mantenimiento || 0,
+            unidad_mantenimiento || 'minutos',
+            plaga_especie || null,
+            plaga_nivel || null,
+            siembra_relacionada || null,  // ✨ Relación siembra-cosecha
+            huerto_siembra_id || null,    // ✨ Relación huerto-siembra para otros tipos
+            fecha_actividad || new Date().toISOString().split('T')[0],
+            commentId
+          ]);
+        } else {
+          // Crear nuevo registro
+          const dataId = uuidv4();
+          await db.query(CommentQueries.createGardenData, [
+            dataId,
+            commentId,
+            comment.huerto_id,
+            fecha_actividad || new Date().toISOString().split('T')[0],
+            cantidad_agua || 0,
+            unidad_agua || 'ml',
+            cantidad_siembra || 0,
+            cantidad_cosecha || 0,
+            cantidad_abono || 0,
+            unidad_abono || 'kg',
+            cantidadPlagasCalculada,
+            cantidad_mantenimiento || 0,
+            unidad_mantenimiento || 'minutos',
+            plaga_especie || null,
+            plaga_nivel || null,
+            siembra_relacionada || null,  // ✨ Relación siembra-cosecha
+            huerto_siembra_id || null,    // ✨ Relación huerto-siembra para otros tipos
+            userId
+          ]);
+        }
       }
+    } catch (gardenDataError) {
+      console.error('Error actualizando datos de huerto:', gardenDataError);
+      // Continuar sin actualizar los datos estadísticos
     }
     
     // Obtener el comentario actualizado con datos
-    const updatedComment = await db.query(CommentQueries.getByIdWithData, [commentId]);
+    let updatedComment;
+    try {
+      updatedComment = await db.query(CommentQueries.getByIdWithData, [commentId]);
+    } catch (queryError) {
+      console.error('Error obteniendo comentario actualizado:', queryError);
+      // Retornar el comentario básico actualizado
+      const basicComment = await db.query(CommentQueries.getById, [commentId]);
+      return res.json({
+        success: true,
+        message: 'Comentario actualizado exitosamente',
+        data: basicComment.rows[0]
+      });
+    }
     
     // Mapear nivel textual de plagas si hay cantidad_plagas
     if (updatedComment.rows.length > 0 && updatedComment.rows[0].tipo_comentario === 'plagas') {
@@ -584,7 +608,7 @@ export const deleteComment = async (req, res) => {
     const comment = commentResult.rows[0];
     
     // Solo el autor del comentario o un administrador puede eliminarlo
-    if (comment.usuario_id !== userId && req.user.rol !== 'administrador') {
+    if (comment.usuario_id !== userId && req.user.role !== 'administrador') {
       return res.status(403).json({
         success: false,
         message: 'No tienes permisos para eliminar este comentario'
