@@ -378,10 +378,23 @@ export const updateComment = async (req, res) => {
     } = req.body;
     const userId = req.user.id;
     
+    console.log('🔄 [updateComment] Iniciando actualización de comentario:', {
+      commentId,
+      userId,
+      contenido: contenido?.substring(0, 50),
+      tipo_comentario
+    });
+    
     // Verificar que el comentario existe y pertenece al usuario
     const commentResult = await db.query(CommentQueries.getById, [commentId]);
     
+    console.log('🔍 [updateComment] Resultado de búsqueda del comentario:', {
+      found: commentResult.rows.length > 0,
+      commentId
+    });
+    
     if (commentResult.rows.length === 0) {
+      console.error('❌ [updateComment] Comentario no encontrado:', commentId);
       return res.status(404).json({
         success: false,
         message: 'Comentario no encontrado'
@@ -390,8 +403,15 @@ export const updateComment = async (req, res) => {
     
     const comment = commentResult.rows[0];
     
+    console.log('🔍 [updateComment] Verificando permisos:', {
+      commentAuthor: comment.usuario_id,
+      currentUser: userId,
+      userRole: req.user.role
+    });
+    
     // Solo el autor del comentario o un administrador puede editarlo
     if (comment.usuario_id !== userId && req.user.role !== 'administrador') {
+      console.error('❌ [updateComment] Sin permisos para editar');
       return res.status(403).json({
         success: false,
         message: 'No tienes permisos para editar este comentario'
@@ -399,9 +419,12 @@ export const updateComment = async (req, res) => {
     }
     
     // Actualizar el comentario
+    console.log('🔄 [updateComment] Ejecutando query de actualización');
     await db.query(CommentQueries.update, [
       contenido, tipo_comentario || comment.tipo_comentario, cambio_tierra || null, nombre_siembra || null, commentId
     ]);
+    
+    console.log('✅ [updateComment] Comentario actualizado exitosamente');
 
     // Obtener el comentario actualizado inmediatamente
     let updatedComment;
@@ -687,10 +710,22 @@ export const deleteComment = async (req, res) => {
     const { commentId } = req.params;
     const userId = req.user.id;
     
+    console.log('🗑️ [deleteComment] Iniciando eliminación de comentario:', {
+      commentId,
+      userId,
+      userRole: req.user.role
+    });
+    
     // Verificar que el comentario existe
     const commentResult = await db.query(CommentQueries.getById, [commentId]);
     
+    console.log('🔍 [deleteComment] Resultado de búsqueda del comentario:', {
+      found: commentResult.rows.length > 0,
+      commentId
+    });
+    
     if (commentResult.rows.length === 0) {
+      console.error('❌ [deleteComment] Comentario no encontrado:', commentId);
       return res.status(404).json({
         success: false,
         message: 'Comentario no encontrado'
@@ -699,103 +734,158 @@ export const deleteComment = async (req, res) => {
     
     const comment = commentResult.rows[0];
     
+    console.log('🔍 [deleteComment] Verificando permisos:', {
+      commentAuthor: comment.usuario_id,
+      currentUser: userId,
+      userRole: req.user.role
+    });
+    
     // Solo el autor del comentario o un administrador puede eliminarlo
     if (comment.usuario_id !== userId && req.user.role !== 'administrador') {
+      console.error('❌ [deleteComment] Sin permisos para eliminar');
       return res.status(403).json({
         success: false,
         message: 'No tienes permisos para eliminar este comentario'
       });
     }
     
+    // Obtener información del huerto ANTES del soft delete para las notificaciones
+    console.log('🔍 [deleteComment] Obteniendo información del huerto antes del delete');
+    let huertoData, usuarioData;
+    
+    try {
+      huertoData = await db.query(CommentQueries.getGardenInfoForNotification, [commentId]);
+      console.log('✅ [deleteComment] Información del huerto obtenida:', {
+        found: huertoData.rows.length > 0
+      });
+    } catch (error) {
+      console.error('⚠️ [deleteComment] Error obteniendo información del huerto:', error);
+      huertoData = { rows: [] };
+    }
+    
+    try {
+      usuarioData = await db.query(CommentQueries.getUserInfoForNotification, [userId]);
+      console.log('✅ [deleteComment] Información del usuario obtenida:', {
+        found: usuarioData.rows.length > 0
+      });
+    } catch (error) {
+      console.error('⚠️ [deleteComment] Error obteniendo información del usuario:', error);
+      usuarioData = { rows: [] };
+    }
+    
     // Soft delete
+    console.log('🗑️ [deleteComment] Ejecutando soft delete');
     await db.query(CommentQueries.delete, [commentId]);
+    console.log('✅ [deleteComment] Soft delete ejecutado exitosamente');
 
-    // Obtener información del huerto y usuario para las notificaciones
-    const huertoData = await db.query(CommentQueries.getGardenInfoForNotification, [commentId]);
-
-    const usuarioData = await db.query(CommentQueries.getUserInfoForNotification, [userId]);
-
+    // Procesar notificaciones en segundo plano (no bloquear la respuesta)
     if (huertoData.rows.length > 0 && usuarioData.rows.length > 0) {
-      const huertoNombre = huertoData.rows[0].huerto_nombre;
-      const huertoCreador = huertoData.rows[0].huerto_creador;
-      const usuarioNombre = usuarioData.rows[0].usuario_nombre;
-      const usuarioRol = usuarioData.rows[0].usuario_rol;
+      try {
+        const huertoNombre = huertoData.rows[0].huerto_nombre;
+        const huertoCreador = huertoData.rows[0].huerto_creador;
+        const usuarioNombre = usuarioData.rows[0].usuario_nombre;
+        const usuarioRol = usuarioData.rows[0].usuario_rol;
 
-      // Solo notificar si el que elimina NO es el dueño del huerto
-      if (userId !== huertoCreador) {
-        // Obtener todos los usuarios que tienen acceso al huerto (excepto el que eliminó)
-        const usuariosHuerto = await db.query(CommentQueries.getGardenUsersForNotification, [comment.huerto_id, userId]);
+        console.log('📨 [deleteComment] Procesando notificaciones');
 
-        // Crear notificaciones para todos los usuarios del huerto
-        const notificacionesPromises = usuariosHuerto.rows.map(async (usuario) => {
-          try {
-            const titulo = `Comentario eliminado en ${huertoNombre}`;
-            const mensaje = `${usuarioNombre} ha eliminado un comentario en el huerto "${huertoNombre}"`;
-            
-            const datosAdicionales = {
-              huerto_id: comment.huerto_id,
-              huerto_nombre: huertoNombre,
-              comentario_id: commentId,
-              autor_id: userId,
-              autor_nombre: usuarioNombre,
-              autor_rol: usuarioRol,
-              tipo_comentario: comment.tipo_comentario,
-              accion: 'eliminado'
-            };
-            
-            await createNotification(
-              usuario.usuario_id,
-              titulo,
-              mensaje,
-              'comentario',
-              datosAdicionales
-            );
-          } catch (error) {
-            console.error(`Error al crear notificación de eliminación para usuario ${usuario.usuario_id}:`, error);
-          }
-        });
+        // Solo notificar si el que elimina NO es el dueño del huerto
+        if (userId !== huertoCreador) {
+          // Obtener todos los usuarios que tienen acceso al huerto (excepto el que eliminó)
+          const usuariosHuerto = await db.query(CommentQueries.getGardenUsersForNotification, [comment.huerto_id, userId]);
+          
+          console.log('📨 [deleteComment] Usuarios a notificar:', usuariosHuerto.rows.length);
 
-        // Ejecutar todas las notificaciones en paralelo
-        await Promise.all(notificacionesPromises);
-
-        // Enviar notificaciones en tiempo real a usuarios conectados
-        const realtimePromises = usuariosHuerto.rows.map(async (usuario) => {
-          try {
-            await irrigationAlertService.sendRealtimeNotification(
-              usuario.usuario_id,
-              'commentDeletedNotification',
-              {
-                type: 'comment_deleted',
+          // Crear notificaciones para todos los usuarios del huerto
+          const notificacionesPromises = usuariosHuerto.rows.map(async (usuario) => {
+            try {
+              const titulo = `Comentario eliminado en ${huertoNombre}`;
+              const mensaje = `${usuarioNombre} ha eliminado un comentario en el huerto "${huertoNombre}"`;
+              
+              const datosAdicionales = {
                 huerto_id: comment.huerto_id,
                 huerto_nombre: huertoNombre,
                 comentario_id: commentId,
                 autor_id: userId,
                 autor_nombre: usuarioNombre,
                 autor_rol: usuarioRol,
-                mensaje: `${usuarioNombre} ha eliminado un comentario en el huerto "${huertoNombre}"`,
-                timestamp: new Date().toISOString()
-              }
-            );
-          } catch (error) {
-            console.error(`Error enviando notificación en tiempo real de eliminación para usuario ${usuario.usuario_id}:`, error);
-          }
-        });
+                tipo_comentario: comment.tipo_comentario,
+                accion: 'eliminado'
+              };
+              
+              await createNotification(
+                usuario.usuario_id,
+                titulo,
+                mensaje,
+                'comentario',
+                datosAdicionales
+              );
+            } catch (error) {
+              console.error(`⚠️ [deleteComment] Error al crear notificación para usuario ${usuario.usuario_id}:`, error);
+            }
+          });
 
-        // Ejecutar notificaciones en tiempo real en paralelo
-        await Promise.all(realtimePromises);
+          // Ejecutar todas las notificaciones en paralelo
+          await Promise.all(notificacionesPromises);
+
+          // Enviar notificaciones en tiempo real a usuarios conectados
+          const realtimePromises = usuariosHuerto.rows.map(async (usuario) => {
+            try {
+              await irrigationAlertService.sendRealtimeNotification(
+                usuario.usuario_id,
+                'commentDeletedNotification',
+                {
+                  type: 'comment_deleted',
+                  huerto_id: comment.huerto_id,
+                  huerto_nombre: huertoNombre,
+                  comentario_id: commentId,
+                  autor_id: userId,
+                  autor_nombre: usuarioNombre,
+                  autor_rol: usuarioRol,
+                  mensaje: `${usuarioNombre} ha eliminado un comentario en el huerto "${huertoNombre}"`,
+                  timestamp: new Date().toISOString()
+                }
+              );
+            } catch (error) {
+              console.error(`⚠️ [deleteComment] Error enviando notificación en tiempo real para usuario ${usuario.usuario_id}:`, error);
+            }
+          });
+
+          // Ejecutar notificaciones en tiempo real en paralelo
+          await Promise.all(realtimePromises);
+          
+          console.log('✅ [deleteComment] Notificaciones procesadas');
+        } else {
+          console.log('ℹ️ [deleteComment] Usuario es el creador del huerto, no se envían notificaciones');
+        }
+      } catch (notificationError) {
+        console.error('⚠️ [deleteComment] Error procesando notificaciones (no crítico):', notificationError);
+        // No fallar la operación si las notificaciones fallan
       }
+    } else {
+      console.log('ℹ️ [deleteComment] No se pueden enviar notificaciones (falta información del huerto o usuario)');
     }
     
+    console.log('✅ [deleteComment] Comentario eliminado exitosamente, enviando respuesta');
     res.json({
       success: true,
       message: 'Comentario eliminado exitosamente'
     });
   } catch (error) {
-    console.error('Error al eliminar comentario:', error);
+    console.error('❌ [deleteComment] Error crítico al eliminar comentario:', {
+      error: error.message,
+      code: error.code,
+      stack: error.stack,
+      commentId: req.params.commentId,
+      userId: req.user?.id
+    });
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor',
+      details: process.env.NODE_ENV === 'development' ? {
+        code: error.code,
+        position: error.position
+      } : undefined
     });
   }
 };
