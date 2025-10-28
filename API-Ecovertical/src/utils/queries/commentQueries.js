@@ -11,9 +11,18 @@ export const CommentQueries = {
   `,
 
   // Obtener comentario por ID con datos del usuario y estadísticas
+  // Usamos DISTINCT ON para evitar duplicados cuando hay múltiples registros de huerto_data
   getByIdWithData: `
-    SELECT 
-      c.*, 
+    SELECT DISTINCT ON (c.id)
+      c.id,
+      c.huerto_id,
+      c.usuario_id,
+      c.contenido,
+      c.tipo_comentario,
+      c.fecha_creacion,
+      c.fecha_actualizacion,
+      c.cambio_tierra,
+      c.nombre_siembra,
       u.nombre as usuario_nombre, 
       u.rol as usuario_rol,
       hd.cantidad_agua,
@@ -21,22 +30,25 @@ export const CommentQueries = {
       hd.cantidad_siembra,
       hd.cantidad_cosecha,
       hd.cantidad_abono,
+      hd.unidad_abono,
       hd.cantidad_plagas,
+      hd.cantidad_mantenimiento,
+      hd.unidad_mantenimiento,
       hd.plaga_especie,
       hd.plaga_nivel,
       hd.siembra_relacionada,
-      c.cambio_tierra,
-      c.nombre_siembra,
-      hd.huerto_siembra_id
+      hd.huerto_siembra_id,
+      hd.fecha as fecha_actividad
     FROM comentarios c
     LEFT JOIN usuarios u ON c.usuario_id = u.id
     LEFT JOIN huerto_data hd ON c.id = hd.comentario_id AND hd.is_deleted = false
-    WHERE c.id = $1
+    WHERE c.id = $1 AND c.is_deleted = false
+    ORDER BY c.id, hd.fecha DESC NULLS LAST
   `,
 
   // Obtener comentarios por huerto con paginación
   getByGarden: `
-    SELECT 
+    SELECT DISTINCT ON (c.id)
       c.*, 
       u.nombre as usuario_nombre, 
       u.rol as usuario_rol,
@@ -58,7 +70,7 @@ export const CommentQueries = {
     LEFT JOIN usuarios u ON c.usuario_id = u.id
     LEFT JOIN huerto_data hd ON c.id = hd.comentario_id AND hd.is_deleted = false
     WHERE c.huerto_id = $1 AND c.is_deleted = false
-    ORDER BY c.fecha_creacion DESC
+    ORDER BY c.id, c.fecha_creacion DESC, hd.fecha DESC NULLS LAST
     LIMIT $2 OFFSET $3
   `,
 

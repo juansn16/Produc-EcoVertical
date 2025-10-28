@@ -12,19 +12,36 @@ export const verifyCommentAccess = async (req, res, next) => {
 
     // Si no hay huerto_id en los parámetros, intentar obtenerlo del comentario
     if (!huerto_id && req.params.commentId) {
-      const commentResult = await db.query(
-        'SELECT huerto_id FROM comentarios WHERE id = $1 AND is_deleted = false',
-        [req.params.commentId]
-      );
-      
-      if (commentResult.rows.length === 0) {
-        return res.status(404).json({
+      try {
+        const commentResult = await db.query(
+          'SELECT huerto_id FROM comentarios WHERE id = $1 AND is_deleted = false',
+          [req.params.commentId]
+        );
+        
+        if (commentResult.rows.length === 0) {
+          return res.status(404).json({
+            success: false,
+            message: 'Comentario no encontrado'
+          });
+        }
+        
+        huerto_id = commentResult.rows[0].huerto_id;
+        
+        if (!huerto_id) {
+          console.error('⚠️ Comentario sin huerto_id:', req.params.commentId);
+          return res.status(400).json({
+            success: false,
+            message: 'Comentario sin huerto asociado'
+          });
+        }
+      } catch (queryError) {
+        console.error('Error obteniendo huerto_id del comentario:', queryError);
+        return res.status(500).json({
           success: false,
-          message: 'Comentario no encontrado'
+          message: 'Error al obtener información del comentario',
+          error: process.env.NODE_ENV === 'development' ? queryError.message : undefined
         });
       }
-      
-      huerto_id = commentResult.rows[0].huerto_id;
     }
 
     if (!huerto_id) {

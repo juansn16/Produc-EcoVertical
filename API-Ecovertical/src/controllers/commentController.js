@@ -406,16 +406,43 @@ export const updateComment = async (req, res) => {
     // Obtener el comentario actualizado inmediatamente
     let updatedComment;
     try {
+      console.log('🔍 Obteniendo comentario actualizado para:', commentId);
       updatedComment = await db.query(CommentQueries.getByIdWithData, [commentId]);
+      console.log('✅ Comentario actualizado obtenido:', updatedComment.rows.length);
     } catch (queryError) {
-      console.error('Error obteniendo comentario actualizado:', queryError);
-      // Retornar el comentario básico actualizado como fallback
-      const basicComment = await db.query(CommentQueries.getById, [commentId]);
-      return res.json({
-        success: true,
-        message: 'Comentario actualizado exitosamente',
-        data: basicComment.rows[0]
-      });
+      console.error('❌ Error obteniendo comentario actualizado:', queryError);
+      console.error('Stack trace:', queryError.stack);
+      console.error('Query:', CommentQueries.getByIdWithData);
+      console.error('Parameters:', [commentId]);
+      
+      // Intentar obtener el comentario básico como fallback
+      try {
+        const basicComment = await db.query(CommentQueries.getById, [commentId]);
+        console.log('✅ Comentario básico obtenido como fallback');
+        
+        if (basicComment.rows.length === 0) {
+          return res.status(404).json({
+            success: false,
+            message: 'Comentario no encontrado'
+          });
+        }
+        
+        // Mapear nivel textual de plagas si es necesario
+        if (basicComment.rows[0].tipo_comentario === 'plagas') {
+          const v = parseInt(basicComment.rows[0].cantidad_plagas || 0);
+          basicComment.rows[0].plaga_nivel_texto = v === 3 ? 'muchos' : v === 2 ? 'medio' : v === 1 ? 'pocos' : null;
+        }
+        
+        return res.json({
+          success: true,
+          message: 'Comentario actualizado exitosamente',
+          data: basicComment.rows[0]
+        });
+      } catch (fallbackError) {
+        console.error('❌ Error en fallback:', fallbackError);
+        // No retornar error aquí para evitar múltiples respuestas, continuar
+        updatedComment = null;
+      }
     }
 
     // Obtener información del huerto y usuario para las notificaciones (sin bloquear la respuesta)
@@ -574,8 +601,44 @@ export const updateComment = async (req, res) => {
       // Continuar sin actualizar los datos estadísticos
     }
     
+    // Verificar que el comentario fue obtenido correctamente
+    if (!updatedComment || !updatedComment.rows || updatedComment.rows.length === 0) {
+      console.error('⚠️ No se pudo obtener el comentario actualizado con datos completos, intentando fallback...');
+      // Intentar obtener comentario básico como fallback
+      try {
+        const basicComment = await db.query(CommentQueries.getById, [commentId]);
+        if (basicComment.rows.length > 0) {
+          // Mapear nivel textual de plagas si es necesario
+          if (basicComment.rows[0].tipo_comentario === 'plagas') {
+            const v = parseInt(basicComment.rows[0].cantidad_plagas || 0);
+            basicComment.rows[0].plaga_nivel_texto = v === 3 ? 'muchos' : v === 2 ? 'medio' : v === 1 ? 'pocos' : null;
+          }
+          
+          return res.json({
+            success: true,
+            message: 'Comentario actualizado exitosamente',
+            data: basicComment.rows[0]
+          });
+        } else {
+          // Si no se encontró el comentario, retornar error
+          return res.status(404).json({
+            success: false,
+            message: 'Comentario no encontrado después de actualizar'
+          });
+        }
+      } catch (error) {
+        console.error('Error en último fallback:', error);
+        // Si todo falla, retornar error
+        return res.status(500).json({
+          success: false,
+          message: 'Error al obtener comentario actualizado',
+          error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor'
+        });
+      }
+    }
+    
     // Mapear nivel textual de plagas si hay cantidad_plagas
-    if (updatedComment && updatedComment.rows.length > 0 && updatedComment.rows[0].tipo_comentario === 'plagas') {
+    if (updatedComment.rows[0].tipo_comentario === 'plagas') {
       const v = parseInt(updatedComment.rows[0].cantidad_plagas || 0);
       updatedComment.rows[0].plaga_nivel_texto = v === 3 ? 'muchos' : v === 2 ? 'medio' : v === 1 ? 'pocos' : null;
       // Si no hay cantidad_plagas pero sí hay plaga_nivel directo, usarlo
@@ -584,17 +647,19 @@ export const updateComment = async (req, res) => {
       }
     }
     
-    res.json({
+    console.log('✅ Enviando respuesta con comentario actualizado');
+    return res.json({
       success: true,
       message: 'Comentario actualizado exitosamente',
       data: updatedComment.rows[0]
     });
   } catch (error) {
     console.error('Error al actualizar comentario:', error);
+    console.error('Stack trace completo:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor'
     });
   }
 };
