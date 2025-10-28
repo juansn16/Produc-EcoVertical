@@ -122,6 +122,7 @@ export default function CommentsPage() {
   const [newImageUrl, setNewImageUrl] = useState('');
   const [isUpdatingImage, setIsUpdatingImage] = useState(false);
   const [selectedComment, setSelectedComment] = useState(null);
+  const [commentBeingEdited, setCommentBeingEdited] = useState(null);
   const [showCommentDetailModal, setShowCommentDetailModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editData, setEditData] = useState({
@@ -427,6 +428,7 @@ export default function CommentsPage() {
   };
 
   const handleOpenEditModal = (comment) => {
+    setCommentBeingEdited(comment);
     setEditData({
       contenido: comment.contenido,
       tipo_comentario: comment.tipo_comentario,
@@ -451,6 +453,7 @@ export default function CommentsPage() {
 
   const handleCloseEditModal = () => {
     setShowEditModal(false);
+    setCommentBeingEdited(null);
     setEditData({
       contenido: '',
       tipo_comentario: 'general',
@@ -474,6 +477,13 @@ export default function CommentsPage() {
   const handleSubmitEdit = async (e) => {
     e.preventDefault();
     if (!editData.contenido.trim()) return;
+    
+    // Verificar que tenemos el comentario que se está editando
+    if (!commentBeingEdited || !commentBeingEdited.id) {
+      setSuccessMessage('Error: No se pudo identificar el comentario a editar');
+      setShowSuccessNotification(true);
+      return;
+    }
 
     try {
       const updateData = {
@@ -499,15 +509,17 @@ export default function CommentsPage() {
         })
       };
 
-      const response = await updateComment(selectedComment.id, updateData);
+      const response = await updateComment(commentBeingEdited.id, updateData);
       setComments(prev => 
         prev.map(comment => 
-          comment.id === selectedComment.id ? response.data : comment
+          comment.id === commentBeingEdited.id ? response.data : comment
         )
       );
       
-      // Actualizar el comentario seleccionado
-      setSelectedComment(response.data);
+      // Actualizar el comentario seleccionado si existe
+      if (selectedComment && selectedComment.id === commentBeingEdited.id) {
+        setSelectedComment(response.data);
+      }
       
       handleCloseEditModal();
       setShowCommentDetailModal(false);
