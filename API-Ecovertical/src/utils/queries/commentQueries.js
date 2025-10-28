@@ -11,9 +11,8 @@ export const CommentQueries = {
   `,
 
   // Obtener comentario por ID con datos del usuario y estadísticas
-  // Usamos DISTINCT ON para evitar duplicados cuando hay múltiples registros de huerto_data
   getByIdWithData: `
-    SELECT DISTINCT ON (c.id)
+    SELECT 
       c.id,
       c.huerto_id,
       c.usuario_id,
@@ -25,52 +24,47 @@ export const CommentQueries = {
       c.nombre_siembra,
       u.nombre as usuario_nombre, 
       u.rol as usuario_rol,
-      hd.cantidad_agua,
-      hd.unidad_agua,
-      hd.cantidad_siembra,
-      hd.cantidad_cosecha,
-      hd.cantidad_abono,
-      hd.unidad_abono,
-      hd.cantidad_plagas,
-      hd.cantidad_mantenimiento,
-      hd.unidad_mantenimiento,
-      hd.plaga_especie,
-      hd.plaga_nivel,
-      hd.siembra_relacionada,
-      hd.huerto_siembra_id,
-      hd.fecha as fecha_actividad
+      (SELECT hd.cantidad_agua FROM huerto_data hd WHERE hd.comentario_id = $1 AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as cantidad_agua,
+      (SELECT hd.unidad_agua FROM huerto_data hd WHERE hd.comentario_id = $1 AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as unidad_agua,
+      (SELECT hd.cantidad_siembra FROM huerto_data hd WHERE hd.comentario_id = $1 AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as cantidad_siembra,
+      (SELECT hd.cantidad_cosecha FROM huerto_data hd WHERE hd.comentario_id = $1 AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as cantidad_cosecha,
+      (SELECT hd.cantidad_abono FROM huerto_data hd WHERE hd.comentario_id = $1 AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as cantidad_abono,
+      (SELECT hd.unidad_abono FROM huerto_data hd WHERE hd.comentario_id = $1 AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as unidad_abono,
+      (SELECT hd.cantidad_plagas FROM huerto_data hd WHERE hd.comentario_id = $1 AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as cantidad_plagas,
+      (SELECT hd.cantidad_mantenimiento FROM huerto_data hd WHERE hd.comentario_id = $1 AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as cantidad_mantenimiento,
+      (SELECT hd.unidad_mantenimiento FROM huerto_data hd WHERE hd.comentario_id = $1 AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as unidad_mantenimiento,
+      (SELECT hd.plaga_especie FROM huerto_data hd WHERE hd.comentario_id = $1 AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as plaga_especie,
+      (SELECT hd.plaga_nivel FROM huerto_data hd WHERE hd.comentario_id = $1 AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as plaga_nivel,
+      (SELECT hd.siembra_relacionada FROM huerto_data hd WHERE hd.comentario_id = $1 AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as siembra_relacionada,
+      (SELECT hd.huerto_siembra_id FROM huerto_data hd WHERE hd.comentario_id = $1 AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as huerto_siembra_id,
+      (SELECT hd.fecha FROM huerto_data hd WHERE hd.comentario_id = $1 AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as fecha_actividad
     FROM comentarios c
     LEFT JOIN usuarios u ON c.usuario_id = u.id
-    LEFT JOIN huerto_data hd ON c.id = hd.comentario_id AND hd.is_deleted = false
     WHERE c.id = $1 AND c.is_deleted = false
-    ORDER BY c.id, hd.fecha DESC NULLS LAST
   `,
 
   // Obtener comentarios por huerto con paginación
   getByGarden: `
-    SELECT DISTINCT ON (c.id)
+    SELECT 
       c.*, 
       u.nombre as usuario_nombre, 
       u.rol as usuario_rol,
-      hd.cantidad_agua,
-      hd.unidad_agua,
-      hd.cantidad_siembra,
-      hd.cantidad_cosecha,
-      hd.cantidad_abono,
-      hd.cantidad_plagas,
-      hd.cantidad_mantenimiento,
-      hd.unidad_mantenimiento,
-      hd.plaga_especie,
-      hd.plaga_nivel,
-      hd.siembra_relacionada,
-      c.cambio_tierra,
-      c.nombre_siembra,
-      hd.huerto_siembra_id
+      (SELECT hd.cantidad_agua FROM huerto_data hd WHERE hd.comentario_id = c.id AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as cantidad_agua,
+      (SELECT hd.unidad_agua FROM huerto_data hd WHERE hd.comentario_id = c.id AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as unidad_agua,
+      (SELECT hd.cantidad_siembra FROM huerto_data hd WHERE hd.comentario_id = c.id AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as cantidad_siembra,
+      (SELECT hd.cantidad_cosecha FROM huerto_data hd WHERE hd.comentario_id = c.id AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as cantidad_cosecha,
+      (SELECT hd.cantidad_abono FROM huerto_data hd WHERE hd.comentario_id = c.id AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as cantidad_abono,
+      (SELECT hd.cantidad_plagas FROM huerto_data hd WHERE hd.comentario_id = c.id AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as cantidad_plagas,
+      (SELECT hd.cantidad_mantenimiento FROM huerto_data hd WHERE hd.comentario_id = c.id AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as cantidad_mantenimiento,
+      (SELECT hd.unidad_mantenimiento FROM huerto_data hd WHERE hd.comentario_id = c.id AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as unidad_mantenimiento,
+      (SELECT hd.plaga_especie FROM huerto_data hd WHERE hd.comentario_id = c.id AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as plaga_especie,
+      (SELECT hd.plaga_nivel FROM huerto_data hd WHERE hd.comentario_id = c.id AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as plaga_nivel,
+      (SELECT hd.siembra_relacionada FROM huerto_data hd WHERE hd.comentario_id = c.id AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as siembra_relacionada,
+      (SELECT hd.huerto_siembra_id FROM huerto_data hd WHERE hd.comentario_id = c.id AND hd.is_deleted = false ORDER BY hd.fecha DESC NULLS LAST LIMIT 1) as huerto_siembra_id
     FROM comentarios c
     LEFT JOIN usuarios u ON c.usuario_id = u.id
-    LEFT JOIN huerto_data hd ON c.id = hd.comentario_id AND hd.is_deleted = false
     WHERE c.huerto_id = $1 AND c.is_deleted = false
-    ORDER BY c.id, c.fecha_creacion DESC, hd.fecha DESC NULLS LAST
+    ORDER BY c.fecha_creacion DESC
     LIMIT $2 OFFSET $3
   `,
 
