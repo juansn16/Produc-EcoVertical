@@ -407,8 +407,11 @@ export const updateComment = async (req, res) => {
     let updatedComment;
     try {
       console.log('🔍 Obteniendo comentario actualizado para:', commentId);
+      console.log('🔍 Query que se va a ejecutar: getByIdWithData');
+      console.log('🔍 Parámetros:', [commentId]);
       updatedComment = await db.query(CommentQueries.getByIdWithData, [commentId]);
       console.log('✅ Comentario actualizado obtenido:', updatedComment.rows.length);
+      console.log('✅ Resultado query:', JSON.stringify(updatedComment.rows[0] || {}, null, 2));
     } catch (queryError) {
       console.error('❌ Error obteniendo comentario actualizado:', queryError);
       console.error('Stack trace:', queryError.stack);
@@ -654,12 +657,26 @@ export const updateComment = async (req, res) => {
       data: updatedComment.rows[0]
     });
   } catch (error) {
-    console.error('Error al actualizar comentario:', error);
+    console.error('❌ Error al actualizar comentario:');
+    console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Error detail:', error.detail);
+    console.error('Error hint:', error.hint);
+    console.error('Error position:', error.position);
     console.error('Stack trace completo:', error.stack);
+    console.error('Request params:', req.params);
+    console.error('Request body:', req.body);
+    
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor'
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor',
+      details: process.env.NODE_ENV === 'development' ? {
+        code: error.code,
+        detail: error.detail,
+        hint: error.hint,
+        position: error.position
+      } : undefined
     });
   }
 };
