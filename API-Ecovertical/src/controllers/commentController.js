@@ -494,52 +494,56 @@ export const updateComment = async (req, res) => {
       console.log('🐛 Datos de plagas actualizados:', { plaga_especie, plaga_nivel, cantidadPlagasCalculada });
     }
     
-    // Actualizar o crear datos en huerto_data
+    // Actualizar o crear datos en huerto_data solo si hay datos para actualizar
     try {
-      if (cantidad_agua || cantidad_siembra || cantidad_cosecha || cantidad_abono || cantidadPlagasCalculada || plaga_especie || plaga_nivel) {
+      const hasDataToUpdate = cantidad_agua || cantidad_siembra || cantidad_cosecha || cantidad_abono || 
+                                cantidadPlagasCalculada || cantidad_mantenimiento || plaga_especie || plaga_nivel ||
+                                siembra_relacionada || huerto_siembra_id;
+      
+      if (hasDataToUpdate && tipo_comentario !== 'general') {
         // Verificar si ya existe un registro de datos para este comentario
         const existingData = await db.query(CommentQueries.checkExistingGardenData, [commentId]);
         
         if (existingData.rows.length > 0) {
           // Actualizar registro existente
           await db.query(CommentQueries.updateGardenData, [
-            cantidad_agua || 0,
-            unidad_agua || 'ml',
-            cantidad_siembra || 0,
-            cantidad_cosecha || 0,
-            cantidad_abono || 0,
-            unidad_abono || 'kg',
-            cantidadPlagasCalculada,
-            cantidad_mantenimiento || 0,
-            unidad_mantenimiento || 'minutos',
+            cantidad_agua || null,
+            unidad_agua || null,
+            cantidad_siembra || null,
+            cantidad_cosecha || null,
+            cantidad_abono || null,
+            unidad_abono || null,
+            cantidadPlagasCalculada || null,
+            cantidad_mantenimiento || null,
+            unidad_mantenimiento || null,
             plaga_especie || null,
             plaga_nivel || null,
-            siembra_relacionada || null,  // ✨ Relación siembra-cosecha
-            huerto_siembra_id || null,    // ✨ Relación huerto-siembra para otros tipos
+            siembra_relacionada || null,
+            huerto_siembra_id || null,
             fecha_actividad || new Date().toISOString().split('T')[0],
             commentId
           ]);
-        } else {
-          // Crear nuevo registro
+        } else if (tipo_comentario !== 'general') {
+          // Solo crear nuevo registro si no es comentario general
           const dataId = uuidv4();
           await db.query(CommentQueries.createGardenData, [
             dataId,
             commentId,
             comment.huerto_id,
             fecha_actividad || new Date().toISOString().split('T')[0],
-            cantidad_agua || 0,
-            unidad_agua || 'ml',
-            cantidad_siembra || 0,
-            cantidad_cosecha || 0,
-            cantidad_abono || 0,
-            unidad_abono || 'kg',
-            cantidadPlagasCalculada,
-            cantidad_mantenimiento || 0,
-            unidad_mantenimiento || 'minutos',
+            cantidad_agua || null,
+            unidad_agua || null,
+            cantidad_siembra || null,
+            cantidad_cosecha || null,
+            cantidad_abono || null,
+            unidad_abono || null,
+            cantidadPlagasCalculada || null,
+            cantidad_mantenimiento || null,
+            unidad_mantenimiento || null,
             plaga_especie || null,
             plaga_nivel || null,
-            siembra_relacionada || null,  // ✨ Relación siembra-cosecha
-            huerto_siembra_id || null,    // ✨ Relación huerto-siembra para otros tipos
+            siembra_relacionada || null,
+            huerto_siembra_id || null,
             userId
           ]);
         }
