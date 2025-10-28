@@ -432,7 +432,7 @@ export const updateComment = async (req, res) => {
       console.log('🔍 Obteniendo comentario actualizado para:', commentId);
       console.log('🔍 Query que se va a ejecutar: getByIdWithData');
       console.log('🔍 Parámetros:', [commentId]);
-      updatedComment = await db.query(CommentQueries.getByIdWithData, [commentId]);
+      updatedComment = await db.query(CommentQueries.getById, [commentId]);
       console.log('✅ Comentario actualizado obtenido:', updatedComment.rows.length);
       console.log('✅ Resultado query:', JSON.stringify(updatedComment.rows[0] || {}, null, 2));
     } catch (queryError) {
