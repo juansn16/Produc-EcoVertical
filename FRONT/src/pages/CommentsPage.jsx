@@ -518,7 +518,7 @@ export default function CommentsPage() {
       
       // Actualizar el comentario seleccionado si existe
       if (selectedComment && selectedComment.id === commentBeingEdited.id) {
-        setSelectedComment(response.data);
+      setSelectedComment(response.data);
       }
       
       handleCloseEditModal();
