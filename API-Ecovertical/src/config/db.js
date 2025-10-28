@@ -12,7 +12,9 @@ const db = new Pool({
   database: process.env.DB_NAME || 'huertos',
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 5000,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
@@ -25,6 +27,20 @@ db.on('connect', async (client) => {
   } catch (error) {
     console.error('❌ Error configurando zona horaria de PostgreSQL:', error.message);
   }
+});
+
+// Manejo de errores en el pool de conexiones
+db.on('error', (err, client) => {
+  console.error('⚠️ Error inesperado en el pool de conexiones de PostgreSQL:', err);
+});
+
+// Manejo de errores en clients individuales
+db.on('acquire', () => {
+  // Conexión adquirida del pool
+});
+
+db.on('remove', () => {
+  // Conexión removida del pool
 });
 
 export default db;

@@ -345,7 +345,7 @@ class IrrigationAlertService {
       }
     } catch (error) {
       // Manejo silencioso de errores de conexión
-      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') {
         // No logear errores de conexión para evitar spam en consola
         return;
       }
@@ -385,7 +385,7 @@ class IrrigationAlertService {
       }
     } catch (error) {
       // Manejo silencioso de errores de conexión
-      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') {
         // No logear errores de conexión para evitar spam en consola
         return;
       }
