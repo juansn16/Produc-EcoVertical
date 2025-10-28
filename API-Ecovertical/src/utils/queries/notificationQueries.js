@@ -70,3 +70,4 @@ export const NotificationQueries = {
     WHERE id = $1
   `
 };
+

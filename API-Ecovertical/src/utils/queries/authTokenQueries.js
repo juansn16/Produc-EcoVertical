@@ -65,3 +65,4 @@ export const AuthTokenQueries = {
     ORDER BY created_at DESC
   `
 };
+

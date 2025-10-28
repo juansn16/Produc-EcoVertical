@@ -59,3 +59,4 @@ export const AuthQueries = {
     WHERE ubicacion_id = $1 AND is_deleted = false
   `
 };
+

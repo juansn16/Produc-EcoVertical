@@ -123,3 +123,4 @@ export const InvitationQueries = {
     WHERE is_deleted = false
   `
 };
+

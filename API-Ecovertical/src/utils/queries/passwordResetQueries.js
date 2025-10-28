@@ -103,3 +103,4 @@ export const PasswordResetQueries = {
     WHERE email = $1 AND created_at > CURRENT_TIMESTAMP - INTERVAL '24 hours'
   `
 };
+

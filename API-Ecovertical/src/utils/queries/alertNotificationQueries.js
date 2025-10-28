@@ -157,3 +157,4 @@ export const AlertNotificationQueries = {
     ORDER BY na.fecha_creacion DESC
   `
 };
+

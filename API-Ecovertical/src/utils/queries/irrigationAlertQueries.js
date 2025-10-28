@@ -140,3 +140,4 @@ export const IrrigationAlertQueries = {
     WHERE u.ubicacion_id = $1
   `
 };
+

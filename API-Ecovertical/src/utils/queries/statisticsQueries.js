@@ -420,3 +420,4 @@ export const StatisticsQueries = {
     LIMIT 50
   `
 };
+

@@ -37,3 +37,4 @@ export const MigrationQueries = {
     WHERE schemaname = $1 AND tablename = $2 AND indexname = $3
   `
 };
+

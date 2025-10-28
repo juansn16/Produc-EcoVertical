@@ -295,3 +295,4 @@ export const CommentQueries = {
     ORDER BY fecha DESC
   `
 };
+

@@ -185,3 +185,4 @@ export const CategoryQueries = {
     LIMIT $1
   `
 };
+

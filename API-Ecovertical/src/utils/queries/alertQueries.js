@@ -197,3 +197,4 @@ export const AlertQueries = {
     WHERE uh.usuario_id = $1 AND a.esta_activa = true AND a.is_deleted = false AND a.tipo != 'riego'
   `
 };
+

@@ -23,6 +23,17 @@ function AromaticasPage() {
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
+  const getCultivoImage = (id) => {
+    if (id === 'albahaca') return '/albahaca.jpg';
+    if (id === 'oregano') return '/Oregano.jpg';
+    if (id === 'tomillo') return '/Menta.jpg';
+    if (id === 'romero') return '/Oregano.jpg';
+    if (id === 'salvia') return '/Oregano.jpg';
+    if (id === 'stevia') return '/Oregano.jpg';
+    if (id === 'lavanda') return '/Oregano.jpg';
+    return '/albahaca.jpg'; // default
+  };
+
   const menuItems = [
     {
       title: "Verduras",
@@ -145,14 +156,14 @@ function AromaticasPage() {
                 {/* Card Header with Image */}
                 <div className="relative h-48 overflow-hidden">
                   <img
-                    src={cultivo.imagen}
-                    alt={cultivo.nombre}
+                    src={cultivo.imagen || getCultivoImage(cultivo.id)}
+                    alt={cultivo.nombre || cultivo.nombre_comun || cultivo.id}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                   <div className="absolute bottom-4 left-4 right-4">
-                    <h3 className="text-2xl font-bold text-white mb-1">{cultivo.nombre}</h3>
-                    <p className="text-green-200 text-sm italic">{cultivo.categoria}</p>
+                    <h3 className="text-2xl font-bold text-white mb-1">{cultivo.nombre || cultivo.nombre_comun || cultivo.id}</h3>
+                    <p className="text-green-200 text-sm italic">{cultivo.categoria || cultivo.nombre_cientifico || cultivo.titulo}</p>
                   </div>
                   <div className="absolute top-4 right-4">
                     <div className="bg-white/20 backdrop-blur-sm rounded-full p-2">
@@ -163,9 +174,16 @@ function AromaticasPage() {
 
                 {/* Card Content */}
                 <div className="p-6">
-                  <div className="mb-4">
-                    <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-sm leading-relaxed`}>{cultivo.descripcion}</p>
-                  </div>
+                  {cultivo.descripcion && (
+                    <div className="mb-4">
+                      <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-sm leading-relaxed`}>{cultivo.descripcion}</p>
+                    </div>
+                  )}
+                  {cultivo.titulo && (
+                    <div className="mb-4">
+                      <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-sm leading-relaxed italic`}>{cultivo.titulo}</p>
+                    </div>
+                  )}
 
                   {/* Info Sections */}
                   <div className="space-y-4">
@@ -175,7 +193,7 @@ function AromaticasPage() {
                         Sustrato
                       </h4>
                       <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} space-y-1`}>
-                        {cultivo.secciones.sustrato && (
+                        {cultivo.secciones?.sustrato && (
                           <>
                             {cultivo.secciones.sustrato.composicion && (
                               <div><span className="font-medium">Composición:</span> {cultivo.secciones.sustrato.composicion}</div>
@@ -189,6 +207,19 @@ function AromaticasPage() {
                             )}
                           </>
                         )}
+                        {cultivo.sistema_cultivo?.sustrato && (
+                          <>
+                            {cultivo.sistema_cultivo.sustrato.composicion && (
+                              <div><span className="font-medium">Composición:</span> {cultivo.sistema_cultivo.sustrato.composicion}</div>
+                            )}
+                            {cultivo.sistema_cultivo.sustrato.ph && (
+                              <div><span className="font-medium">pH:</span> {cultivo.sistema_cultivo.sustrato.ph}</div>
+                            )}
+                            {cultivo.sistema_cultivo.sustrato.notas && (
+                              <div><span className="font-medium">Notas:</span> {cultivo.sistema_cultivo.sustrato.notas}</div>
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -198,7 +229,7 @@ function AromaticasPage() {
                         Siembra
                       </h4>
                       <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} space-y-1`}>
-                        {cultivo.secciones.siembra && (
+                        {cultivo.secciones?.siembra && (
                           <>
                             {(cultivo.secciones.siembra.semillas || cultivo.secciones.siembra.metodo) && (
                               <div><span className="font-medium">
@@ -214,6 +245,13 @@ function AromaticasPage() {
                             )}
                           </>
                         )}
+                        {cultivo.sistema_cultivo?.contenedores && (
+                          <div><span className="font-medium">Contenedores:</span>
+                            <ul className="list-disc ml-5 mt-1">
+                              {cultivo.sistema_cultivo.contenedores.map((item, i) => <li key={i}>{item}</li>)}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -223,7 +261,7 @@ function AromaticasPage() {
                         Riego
                       </h4>
                       <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} space-y-1`}>
-                        {cultivo.secciones.riego && (
+                        {cultivo.secciones?.riego && (
                           <>
                             {cultivo.secciones.riego.frecuencia && (
                               <div><span className="font-medium">Frecuencia:</span> {cultivo.secciones.riego.frecuencia}</div>
@@ -233,16 +271,33 @@ function AromaticasPage() {
                             )}
                           </>
                         )}
+                        {cultivo.condiciones_climaticas?.riego && (
+                          <>
+                            {cultivo.condiciones_climaticas.riego.estrategia && (
+                              <div><span className="font-medium">Estrategia:</span> {cultivo.condiciones_climaticas.riego.estrategia}</div>
+                            )}
+                            {cultivo.condiciones_climaticas.riego.sistema && (
+                              <div><span className="font-medium">Sistema:</span> {cultivo.condiciones_climaticas.riego.sistema}</div>
+                            )}
+                          </>
+                        )}
+                        {cultivo.manejo?.riego && (
+                          <div><span className="font-medium">Riego:</span>
+                            <ul className="list-disc ml-5 mt-1">
+                              {cultivo.manejo.riego.map((item, i) => <li key={i}>{item}</li>)}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     <div className="border-l-4 border-orange-500 pl-4">
                       <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'} mb-2 flex items-center`}>
                         <span className="text-orange-500 mr-2">⚡</span>
-                        Abono
+                        Abono/Manejo
                       </h4>
                       <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} space-y-1`}>
-                        {cultivo.secciones.abono && (
+                        {cultivo.secciones?.abono && (
                           <>
                             {(cultivo.secciones.abono.tipo || cultivo.secciones.abono.frecuencia) && (
                               <div><span className="font-medium">
@@ -254,16 +309,30 @@ function AromaticasPage() {
                             )}
                           </>
                         )}
+                        {cultivo.manejo?.nutricion && (
+                          <div><span className="font-medium">Nutrición:</span>
+                            <ul className="list-disc ml-5 mt-1">
+                              {cultivo.manejo.nutricion.map((item, i) => <li key={i}>{item}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {cultivo.manejo?.poda && (
+                          <div><span className="font-medium">Poda:</span>
+                            <ul className="list-disc ml-5 mt-1">
+                              {cultivo.manejo.poda.map((item, i) => <li key={i}>{item}</li>)}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     <div className="border-l-4 border-purple-500 pl-4">
                       <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'} mb-2 flex items-center`}>
                         <span className="text-purple-500 mr-2">☀️</span>
-                        Cuidados
+                        Iluminación/Cuidados
                       </h4>
                       <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} space-y-1`}>
-                        {cultivo.secciones.cuidados && (
+                        {cultivo.secciones?.cuidados && (
                           <>
                             {(cultivo.secciones.cuidados.luz || cultivo.secciones.cuidados.ubicacion || cultivo.secciones.cuidados.agua || cultivo.secciones.cuidados.plagas) && (
                               <div><span className="font-medium">
@@ -280,6 +349,19 @@ function AromaticasPage() {
                             )}
                           </>
                         )}
+                        {cultivo.condiciones_climaticas?.iluminacion && (
+                          <>
+                            {cultivo.condiciones_climaticas.iluminacion.duracion && (
+                              <div><span className="font-medium">Duración:</span> {cultivo.condiciones_climaticas.iluminacion.duracion}</div>
+                            )}
+                            {cultivo.condiciones_climaticas.iluminacion.tipo_luz && (
+                              <div><span className="font-medium">Tipo de luz:</span> {cultivo.condiciones_climaticas.iluminacion.tipo_luz}</div>
+                            )}
+                            {cultivo.condiciones_climaticas.iluminacion.intensidad && (
+                              <div><span className="font-medium">Intensidad:</span> {cultivo.condiciones_climaticas.iluminacion.intensidad}</div>
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -289,7 +371,7 @@ function AromaticasPage() {
                         Cosecha
                       </h4>
                       <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} space-y-1`}>
-                        {cultivo.secciones.cosecha && (
+                        {cultivo.secciones?.cosecha && (
                           <>
                             {(cultivo.secciones.cosecha.tiempo || cultivo.secciones.cosecha.metodo) && (
                               <div><span className="font-medium">
@@ -302,6 +384,20 @@ function AromaticasPage() {
                               </span> {cultivo.secciones.cosecha.metodo || cultivo.secciones.cosecha.consejo}</div>
                             )}
                           </>
+                        )}
+                        {cultivo.manejo?.cosecha && (
+                          <div><span className="font-medium">Cosecha:</span>
+                            <ul className="list-disc ml-5 mt-1">
+                              {cultivo.manejo.cosecha.map((item, i) => <li key={i}>{item}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {cultivo.manejo?.procesado_cosecha && (
+                          <div><span className="font-medium">Procesado de cosecha:</span>
+                            <ul className="list-disc ml-5 mt-1">
+                              {cultivo.manejo.procesado_cosecha.map((item, i) => <li key={i}>{item}</li>)}
+                            </ul>
+                          </div>
                         )}
                       </div>
                     </div>
