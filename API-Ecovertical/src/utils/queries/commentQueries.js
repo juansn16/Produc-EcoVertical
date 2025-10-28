@@ -122,7 +122,7 @@ export const CommentQueries = {
     SELECT h.nombre as huerto_nombre, h.usuario_creador as huerto_creador, h.ubicacion_id
     FROM comentarios c
     JOIN huertos h ON c.huerto_id = h.id
-    WHERE c.id = $1
+    WHERE c.id = $1 AND h.is_deleted = false
   `,
 
   // Obtener usuarios del huerto para notificaciones

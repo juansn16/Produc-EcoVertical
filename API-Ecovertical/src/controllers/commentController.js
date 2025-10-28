@@ -663,6 +663,15 @@ export const updateComment = async (req, res) => {
       }
     }
     
+    // Verificar que tenemos el comentario antes de acceder
+    if (!updatedComment || !updatedComment.rows || updatedComment.rows.length === 0) {
+      console.error('❌ No se pudo obtener el comentario después de actualizar');
+      return res.status(404).json({
+        success: false,
+        message: 'No se pudo obtener el comentario actualizado'
+      });
+    }
+    
     // Mapear nivel textual de plagas si hay cantidad_plagas
     if (updatedComment.rows[0].tipo_comentario === 'plagas') {
       const v = parseInt(updatedComment.rows[0].cantidad_plagas || 0);
