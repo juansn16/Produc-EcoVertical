@@ -170,6 +170,9 @@ function Inventario() {
 
   const handleRecordUsage = async (id, usageData) => {
     try {
+      console.log('🔄 [handleRecordUsage] Iniciando registro de uso');
+      console.log('📦 [handleRecordUsage] id:', id);
+      console.log('📦 [handleRecordUsage] usageData:', usageData);
       await recordUsage(id, usageData);
       setIsUsageModalOpen(false);
       setSelectedItem(null);
@@ -611,6 +614,13 @@ function Inventario() {
               e.preventDefault();
               const formData = new FormData(e.target);
               const selectedGardenId = localStorage.getItem('selectedGardenId');
+              
+              console.log('🌱 [Inventario] selectedGardenId:', selectedGardenId);
+              
+              if (!selectedGardenId) {
+                alert('⚠️ No hay huerto seleccionado. Por favor selecciona un huerto primero.');
+                return;
+              }
               
               handleRecordUsage(selectedItem.id, {
                 cantidad_usada: parseInt(formData.get('cantidad')),

@@ -34,6 +34,6 @@ export const refreshSchema = z.object({
 });
 
 export const logoutSchema = z.object({
-  refreshToken: z.string().min(1, 'Token de refresco es requerido')
+  refreshToken: z.string().optional()
 });
 

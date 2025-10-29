@@ -86,6 +86,9 @@ function Proveedores() {
   };
 
   const handleUpdateProvider = async (id, updatedProvider) => {
+    // Guardar el proveedor original con su ID antes de cerrar el modal
+    const originalProvider = { ...updatedProvider, id };
+    
     // Cerrar modal inmediatamente para mejor UX
     setSelectedProvider(null);
     setIsModalOpen(false);
@@ -94,8 +97,8 @@ function Proveedores() {
       await updateProvider(id, updatedProvider);
     } catch (error) {
       console.error('Error al actualizar proveedor:', error);
-      // Si hay error, volver a abrir el modal para que el usuario pueda intentar de nuevo
-      setSelectedProvider(updatedProvider);
+      // Si hay error, volver a abrir el modal con el proveedor original completo
+      setSelectedProvider(originalProvider);
       setIsModalOpen(true);
     }
   };

@@ -119,7 +119,12 @@ export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   register: (userData) => api.post('/auth/register', userData),
   refreshToken: (refreshToken) => api.post('/auth/refresh', { refreshToken }),
-  logout: () => api.post('/auth/logout'),
+  logout: () => {
+    const refreshToken = localStorage.getItem('refreshToken');
+    // Si hay refreshToken, enviarlo; si no, enviar objeto vacío
+    const body = refreshToken ? { refreshToken } : {};
+    return api.post('/auth/logout', body);
+  },
   forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
   resetPassword: (token, newPassword) => api.post('/auth/reset-password', { token, newPassword }),
 };
@@ -181,7 +186,26 @@ export const inventoryAPI = {
 // Servicios de comentarios
 export const commentsAPI = {
   getComments: (resourceType, resourceId) => api.get(`/comments/${resourceType}/${resourceId}`),
-  createComment: (commentData) => api.post('/comments', commentData),
+  createComment: (huertoId, commentData) => {
+    console.log('📝 [commentsAPI.createComment] Parámetros recibidos:', { 
+      huertoId, 
+      commentData,
+      huertoIdType: typeof huertoId,
+      huertoIdIsNull: huertoId === null,
+      huertoIdIsUndefined: huertoId === undefined
+    });
+    
+    if (!huertoId || huertoId === 'undefined' || huertoId === 'null') {
+      console.error('❌ [commentsAPI.createComment] huertoId es inválido:', huertoId);
+      return Promise.reject(new Error('huertoId es requerido para crear un comentario'));
+    }
+    
+    const url = `/comments/garden/${huertoId}`;
+    console.log('📍 [commentsAPI.createComment] URL construida:', url);
+    console.log('🌐 [commentsAPI.createComment] URL completa será:', `${API_BASE_URL}${url}`);
+    
+    return api.post(url, commentData);
+  },
   updateComment: (id, commentData) => api.put(`/comments/${id}`, commentData),
   deleteComment: (id) => api.delete(`/comments/${id}`),
   likeComment: (id) => api.post(`/comments/${id}/like`),

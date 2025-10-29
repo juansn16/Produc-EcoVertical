@@ -23,15 +23,21 @@ const CommentForm = ({
       setSubmitError('');
       setSubmitSuccess('');
 
+      // Nota: userId se obtiene del token JWT en el backend
       const commentData = {
-        content: formData.content,
-        rating: formData.rating,
-        resourceType,
-        resourceId,
-        userId: user.id
+        contenido: formData.content,
+        tipo_comentario: 'general'
       };
 
-      const response = await commentsAPI.createComment(commentData);
+      // Si es un comentario de huerto, necesitamos el huertoId
+      let response;
+      if (resourceType === 'garden') {
+        response = await commentsAPI.createComment(resourceId, commentData);
+      } else {
+        // Para otros tipos de comentarios, revisar si existe una ruta específica
+        console.warn('resourceType no soportado:', resourceType);
+        throw new Error('Tipo de recurso no soportado');
+      }
       
       setSubmitSuccess('Comentario agregado exitosamente');
       resetForm();

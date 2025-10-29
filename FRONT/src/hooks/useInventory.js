@@ -136,10 +136,25 @@ export const useInventory = () => {
 
   // Generar comentario automático sobre el uso de stock
   const generateUsageComment = useCallback(async (itemId, itemName, cantidadUsada, stockRestante, notas, huertoId) => {
+    console.log('🚀 [generateUsageComment] INICIO');
+    console.log('📋 Parámetros:', { itemId, itemName, cantidadUsada, stockRestante, notas, huertoId });
+    
     try {
       // Obtener el usuario actual del localStorage
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const selectedGardenId = huertoId || localStorage.getItem('selectedGardenId');
+      
+      console.log('🔍 Debug huerto:', {
+        huertoId_recibido: huertoId,
+        selectedGardenId_final: selectedGardenId,
+        localStorage_GardenId: localStorage.getItem('selectedGardenId')
+      });
+      
+      // Si no hay huerto seleccionado, no crear el comentario
+      if (!selectedGardenId || selectedGardenId === 'undefined' || selectedGardenId === 'null') {
+        console.warn('⚠️ No hay huerto seleccionado, se omite la creación del comentario automático');
+        return;
+      }
       
       // Crear el contenido del comentario
       const commentContent = `📦 **Uso de Inventario Registrado**
@@ -160,16 +175,19 @@ ${notas ? `**Notas:** ${notas}` : ''}
 Este comentario se generó automáticamente al registrar el uso del producto en el inventario.`;
 
       // Crear el comentario
+      // Nota: usuario_id se obtiene del token JWT en el backend, no hay que enviarlo
       const commentData = {
-        huerto_id: selectedGardenId,
-        usuario_id: user.id,
         contenido: commentContent,
         tipo_comentario: 'mantenimiento',
         etiquetas: ['inventario', 'uso', 'stock', 'automático']
       };
 
-      await commentsAPI.createComment(commentData);
-      console.log('Comentario automático generado exitosamente');
+      console.log('🔄 [generateUsageComment] Enviando comentario...');
+      console.log('📍 URL: /comments/garden/' + selectedGardenId);
+      console.log('📦 Datos:', commentData);
+
+      await commentsAPI.createComment(selectedGardenId, commentData);
+      console.log('✅ Comentario automático generado exitosamente');
     } catch (error) {
       console.error('Error al generar comentario automático:', error);
       // No mostrar error al usuario, solo log
@@ -180,8 +198,14 @@ Este comentario se generó automáticamente al registrar el uso del producto en 
   const recordUsage = useCallback(async (id, usageData) => {
     setLoading(true);
     try {
+      console.log('🔄 [recordUsage] Iniciando registro de uso');
+      console.log('📦 [recordUsage] id:', id);
+      console.log('📦 [recordUsage] usageData:', usageData);
+      
       const response = await inventoryAPI.recordItemUsage(id, usageData);
       const updatedItem = response.data.data;
+      
+      console.log('✅ [recordUsage] Uso registrado exitosamente');
       
       // Actualizar el estado local
       setItems(prev => prev.map(item => 
@@ -190,6 +214,9 @@ Este comentario se generó automáticamente al registrar el uso del producto en 
       
       // Generar comentario automático
       const item = items.find(item => item.id === id);
+      console.log('🔍 [recordUsage] Item encontrado:', item);
+      console.log('🌱 [recordUsage] usageData.huerto_id:', usageData.huerto_id);
+      
       if (item) {
         await generateUsageComment(
           id,

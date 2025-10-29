@@ -213,7 +213,7 @@ export const createProvider = async (req, res) => {
       if (ubicacion && (ubicacion.ciudad || ubicacion.calle)) {
         console.log('Creando ubicación para proveedor...');
         
-        const ubicacionId = uuidv4();
+        ubicacionId = uuidv4(); // No usar const aquí, actualizar la variable externa
         const ubicacionData = [
           ubicacionId,
           ubicacion.nombre && ubicacion.nombre.trim() !== "" 
@@ -406,22 +406,21 @@ export const updateProvider = async (req, res) => {
       });
     }
 
-    console.log('🔗 Obteniendo conexión a la base de datos...');
-    const connection = await db.getConnection();
-    await connection.beginTransaction();
+    console.log('🔗 Iniciando transacción PostgreSQL...');
+    await db.query('BEGIN');
     console.log('✅ Transacción iniciada');
 
     try {
       // 1. Verificar si el proveedor existe
       console.log('🔍 Verificando si el proveedor existe...');
-      const providersResult = await connection.query(
+      const providersResult = await db.query(
         ProviderQueries.checkProviderExists,
         [id]
       );
       
       if (providersResult.rows.length === 0) {
         console.log('❌ Proveedor no encontrado');
-        await connection.rollback();
+        await db.query('ROLLBACK');
         return res.status(404).json({
           success: false,
           message: 'Proveedor no encontrado'
@@ -439,7 +438,7 @@ export const updateProvider = async (req, res) => {
           // Actualizar ubicación existente (sin latitud/longitud)
           console.log('🔄 Actualizando ubicación existente...');
           
-          await connection.query(ProviderQueries.updateLocation, [
+          await db.query(ProviderQueries.updateLocation, [
             ubicacion.ciudad || '',
             ubicacion.estado || '',
             ubicacion.calle || '',
@@ -451,7 +450,12 @@ export const updateProvider = async (req, res) => {
         } else if (ubicacion.ciudad || ubicacion.calle) {
           // Crear nueva ubicación (sin latitud/longitud)
           console.log('🆕 Creando nueva ubicación...');
+          
+          // Generar ID para la ubicación
+          ubicacionId = uuidv4();
+          
           const ubicacionData = [
+            ubicacionId, // ID primero
             ubicacion.nombre || `Ubicación de ${nombre_empresa}`,
             ubicacion.calle || '',
             ubicacion.ciudad || '',
@@ -464,23 +468,8 @@ export const updateProvider = async (req, res) => {
 
           console.log('📊 Datos de ubicación a crear:', ubicacionData);
 
-          const ubicacionResult = await connection.query(
-            LocationQueries.create,
-            ubicacionData
-          );
-          
-          // Obtener el ID de la ubicación recién creada
-          const newLocationResult = await connection.query(
-            ProviderQueries.getNewLocation,
-            [ubicacionData[0], ubicacionData[1], ubicacionData[2]]
-          );
-
-          if (newLocationResult.rows.length > 0) {
-            ubicacionId = newLocationResult.rows[0].id;
-            console.log('✅ Ubicación creada con ID:', ubicacionId);
-          } else {
-            throw new Error('No se pudo obtener el ID de la ubicación creada');
-          }
+          await db.query(LocationQueries.create, ubicacionData);
+          console.log('✅ Ubicación creada con ID:', ubicacionId);
         }
       }
 
@@ -508,7 +497,7 @@ export const updateProvider = async (req, res) => {
       
       console.log('📊 Datos de actualización del proveedor:', updateData);
       
-      await connection.query(ProviderQueries.updateProvider, updateData);
+      await db.query(ProviderQueries.updateProvider, updateData);
       console.log('✅ Proveedor actualizado en base de datos');
 
       // 4. Actualizar categorías en la tabla proveedor_categorias
@@ -517,7 +506,7 @@ export const updateProvider = async (req, res) => {
         
         // Eliminar categorías existentes (soft delete)
         console.log('🗑️ Eliminando categorías existentes...');
-        const deleteResult = await connection.query(ProviderQueries.deleteProviderCategories, [id]);
+        const deleteResult = await db.query(ProviderQueries.deleteProviderCategories, [id]);
         console.log(`✅ Eliminadas ${deleteResult.rowCount} categorías existentes`);
         
         // Pequeña pausa para asegurar que la eliminación se procese
@@ -527,7 +516,7 @@ export const updateProvider = async (req, res) => {
         for (const categoriaNombre of categoriasToUse) {
           console.log(`🔍 Procesando categoría: ${categoriaNombre}`);
           // Buscar o crear la categoría
-          let categoriaResult = await connection.query(
+          let categoriaResult = await db.query(
             ProviderQueries.findCategoryByName,
             [categoriaNombre.trim()]
           );
@@ -537,7 +526,7 @@ export const updateProvider = async (req, res) => {
             // Crear nueva categoría
             categoriaId = uuidv4();
             console.log(`🆕 Creando nueva categoría: ${categoriaNombre} con ID: ${categoriaId}`);
-            await connection.query(
+            await db.query(
               ProviderQueries.createCategory,
               [categoriaId, categoriaNombre.trim(), `Categoría para ${categoriaNombre.trim()}`]
             );
@@ -548,7 +537,7 @@ export const updateProvider = async (req, res) => {
           }
           
           // Verificar si la relación ya existe (incluyendo las eliminadas)
-          const existingRelationResult = await connection.query(
+          const existingRelationResult = await db.query(
             ProviderQueries.checkProviderCategoryRelation,
             [id, categoriaId]
           );
@@ -556,7 +545,7 @@ export const updateProvider = async (req, res) => {
           if (existingRelationResult.rows.length === 0) {
             // Crear nueva relación
             console.log(`🔗 Creando nueva relación proveedor-categoría: ${id} -> ${categoriaId}`);
-            await connection.query(
+            await db.query(
               ProviderQueries.createProviderCategory,
               [uuidv4(), id, categoriaId]
             );
@@ -565,7 +554,7 @@ export const updateProvider = async (req, res) => {
             if (relation.is_deleted === true) {
               // Restaurar relación eliminada
               console.log(`🔄 Restaurando relación eliminada: ${id} -> ${categoriaId}`);
-              await connection.query(
+              await db.query(
                 ProviderQueries.restoreProviderCategory,
                 [relation.id]
               );
@@ -578,13 +567,13 @@ export const updateProvider = async (req, res) => {
       } else {
         // Si no hay categorías, eliminar todas las existentes
         console.log('🗑️ No hay categorías, eliminando todas las existentes...');
-        const deleteResult = await connection.query(ProviderQueries.deleteProviderCategories, [id]);
+        const deleteResult = await db.query(ProviderQueries.deleteProviderCategories, [id]);
         console.log(`✅ Eliminadas ${deleteResult.rowCount} categorías del proveedor`);
       }
 
       // 5. Obtener el proveedor actualizado
       console.log('🔍 Obteniendo proveedor actualizado...');
-      const updatedProvidersResult = await connection.query(ProviderQueries.getProviderById, [id]);
+      const updatedProvidersResult = await db.query(ProviderQueries.getProviderById, [id]);
       
       if (updatedProvidersResult.rows.length === 0) {
         throw new Error('No se pudo obtener el proveedor actualizado');
@@ -610,7 +599,7 @@ export const updateProvider = async (req, res) => {
       };
 
       console.log('💾 Confirmando transacción...');
-      await connection.commit();
+      await db.query('COMMIT');
       console.log('✅ Proveedor actualizado exitosamente:', formattedProvider.nombre_empresa);
 
       res.json({
@@ -621,12 +610,9 @@ export const updateProvider = async (req, res) => {
 
     } catch (error) {
       console.error('❌ Error en transacción:', error);
-      await connection.rollback();
+      await db.query('ROLLBACK');
       console.error('🔄 Transacción revertida');
       throw error;
-    } finally {
-      connection.release();
-      console.log('🔗 Conexión liberada');
     }
 
   } catch (error) {

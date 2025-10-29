@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // Validación para crear comentario
 export const createCommentSchema = z.object({
-  huerto_id: z.string().uuid('ID de huerto no válido'),
+  // huerto_id viene de los parámetros de la ruta, no del body
   contenido: z.string().min(1, 'El contenido es requerido').max(1000, 'El contenido no puede exceder 1000 caracteres'),
   tipo_comentario: z.enum(['riego', 'siembra', 'cosecha', 'abono', 'plagas', 'general', 'mantenimiento']).optional(),
   // Datos estadísticos opcionales

@@ -359,10 +359,11 @@ class IrrigationAlertService {
    */
   async checkDueAlerts(now) {
     try {
-      const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
-      const currentTime = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
+      // Obtener fecha y hora en la zona horaria local (Venezuela)
+      const localDate = now.toLocaleDateString('en-CA'); // YYYY-MM-DD
+      const localTime = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }); // HH:MM
 
-      console.log(`🔍 Verificando alertas vencidas para ${currentDate} a las ${currentTime}`);
+      console.log(`🔍 Verificando alertas vencidas para ${localDate} a las ${localTime}`);
 
       // Buscar alertas que deben completarse ahora
       const result = await db.query(
@@ -373,16 +374,21 @@ class IrrigationAlertService {
          WHERE ar.fecha_alerta = $1 
          AND ar.hora_alerta = $2
          AND ar.estado = 'activa'`,
-        [currentDate, currentTime]
+        [localDate, localTime]
       );
       const dueAlerts = result.rows;
+
+      console.log(`📊 Alertas encontradas: ${dueAlerts.length}`);
 
       if (dueAlerts.length > 0) {
         console.log(`⏰ Procesando ${dueAlerts.length} alertas vencidas`);
         
         for (const alert of dueAlerts) {
+          console.log(`🚨 Procesando alerta: ${alert.descripcion} - ${alert.huerto_nombre}`);
           await this.processIrrigationAlert(alert);
         }
+      } else {
+        console.log(`✅ No hay alertas pendientes para ${localDate} a las ${localTime}`);
       }
     } catch (error) {
       // Manejo silencioso de errores de conexión

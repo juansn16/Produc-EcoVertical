@@ -1762,6 +1762,9 @@ export default function EstadisticasHuerto() {
       // Iniciar progreso simulado
       iniciarProgresoSimulado(tiempoEstimadoSegundos);
       
+      // Pequeño delay para asegurar que el modal se renderice
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
     const columnas = [
       { header: "Fecha", key: "fecha" },
       { header: "Cantidad de agua", key: "cantidadFormateada" },
@@ -1811,8 +1814,24 @@ export default function EstadisticasHuerto() {
     }
   };
 
-  const exportarSiembraPDF = () => {
-    const columnas = [
+  const exportarSiembraPDF = async () => {
+    try {
+      console.log('🌿 Iniciando exportación de PDF de siembra...');
+      console.log('📊 Datos de siembra disponibles:', siembraData.length);
+      
+      // Activar loading y calcular tiempo estimado
+      setLoadingReportes(prev => ({ ...prev, siembra: true }));
+      const tiempoEstimadoSegundos = calcularTiempoEstimado('siembra', siembraData.length);
+      const tiempoMaximo = Math.ceil(tiempoEstimadoSegundos * 1.5);
+      setTiempoEstimado(`Tiempo estimado: ${tiempoEstimadoSegundos}-${tiempoMaximo} segundos`);
+      
+      // Iniciar progreso simulado
+      iniciarProgresoSimulado(tiempoEstimadoSegundos);
+      
+      // Pequeño delay para asegurar que el modal se renderice (aumentado a 300ms)
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const columnas = [
       { header: "Fecha de Siembra", key: "fecha" },
       { header: "Nombre de Siembra", key: "nombre_siembra" },
       { header: "Cantidad de Sembrado", key: "siembra" },
@@ -1852,9 +1871,14 @@ export default function EstadisticasHuerto() {
       ]
     };
     
+    console.log('📋 Datos formateados:', datosFormateados.length);
+    console.log('📊 Datos de gráfica preparados:', chartData);
+    
     const fechaActual = new Date().toISOString().split("T")[0];
     const nombreHuerto = data.garden?.nombre || 'huerto';
-    crearPDF(
+    
+    console.log('📄 Llamando a crearPDF...');
+    await crearPDF(
       `Siembra y Producción para ${nombreHuerto}`,
       datosFormateados,
       columnas,
@@ -1864,28 +1888,74 @@ export default function EstadisticasHuerto() {
       [6, 182, 212], // Color cyan para siembra
       'siembra' // Tipo de estadística
     );
-  };
-
-  const exportarAbonoPDF = () => {
-    const columnas = [
-      { header: "Fecha", key: "fecha" },
-      { header: "Cantidad de Abono", key: "cantidad_abono" },
-      { header: "Cambio de Tierra", key: "cambio_tierra" },
-      { header: "Nombre de Siembra", key: "nombre_siembra" },
-    ];
     
-    const fechaActual = new Date().toISOString().split("T")[0];
-    const nombreHuerto = data.garden?.nombre || 'huerto';
-    crearPDF(
-      `Cambio de Tierra y Abono para ${nombreHuerto}`,
-      abonoData,
-      columnas,
-      `abono_tierra_${nombreHuerto.replace(/\s+/g, '_')}_${fechaActual}.pdf`,
-      null, // Sin gráfica
-      'line',
-      [34, 197, 94], // Color verde para abono
-      'abono' // Tipo de estadística
-    );
+    // Mostrar éxito (el loading se desactiva automáticamente)
+    setSuccessMessage("Reporte de siembra generado exitosamente");
+    setShowSuccessNotification(true);
+  
+  } catch (error) {
+    console.error('❌ Error en exportarSiembraPDF:', error);
+    setLoadingReportes(prev => ({ ...prev, siembra: false }));
+    detenerProgresoSimulado();
+    setTiempoEstimado("");
+    setSuccessMessage("Error al exportar reporte de siembra");
+    setShowSuccessNotification(true);
+  }
+};
+
+  const exportarAbonoPDF = async () => {
+    try {
+      console.log('🌱 Iniciando exportación de PDF de abono...');
+      console.log('📊 Datos de abono disponibles:', abonoData.length);
+      
+      // Activar loading y calcular tiempo estimado
+      setLoadingReportes(prev => ({ ...prev, abono: true }));
+      const tiempoEstimadoSegundos = calcularTiempoEstimado('abono', abonoData.length);
+      const tiempoMaximo = Math.ceil(tiempoEstimadoSegundos * 1.5);
+      setTiempoEstimado(`Tiempo estimado: ${tiempoEstimadoSegundos}-${tiempoMaximo} segundos`);
+      
+      // Iniciar progreso simulado
+      iniciarProgresoSimulado(tiempoEstimadoSegundos);
+      
+      // Pequeño delay para asegurar que el modal se renderice (aumentado a 300ms)
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const columnas = [
+        { header: "Fecha", key: "fecha" },
+        { header: "Cantidad de Abono", key: "cantidad_abono" },
+        { header: "Cambio de Tierra", key: "cambio_tierra" },
+        { header: "Nombre de Siembra", key: "nombre_siembra" },
+      ];
+      
+      console.log('📋 Datos de abono:', abonoData.length);
+      
+      const fechaActual = new Date().toISOString().split("T")[0];
+      const nombreHuerto = data.garden?.nombre || 'huerto';
+      
+      console.log('📄 Llamando a crearPDF...');
+      await crearPDF(
+        `Cambio de Tierra y Abono para ${nombreHuerto}`,
+        abonoData,
+        columnas,
+        `abono_tierra_${nombreHuerto.replace(/\s+/g, '_')}_${fechaActual}.pdf`,
+        null, // Sin gráfica
+        'line',
+        [34, 197, 94], // Color verde para abono
+        'abono' // Tipo de estadística
+      );
+      
+      // Mostrar éxito (el loading se desactiva automáticamente)
+      setSuccessMessage("Reporte de abono generado exitosamente");
+      setShowSuccessNotification(true);
+    
+    } catch (error) {
+      console.error('❌ Error en exportarAbonoPDF:', error);
+      setLoadingReportes(prev => ({ ...prev, abono: false }));
+      detenerProgresoSimulado();
+      setTiempoEstimado("");
+      setSuccessMessage("Error al exportar reporte de abono");
+      setShowSuccessNotification(true);
+    }
   };
 
   const exportarPlagasPDF = async () => {
@@ -1898,6 +1968,9 @@ export default function EstadisticasHuerto() {
       
       // Iniciar progreso simulado
       iniciarProgresoSimulado(tiempoEstimadoSegundos);
+      
+      // Pequeño delay para asegurar que el modal se renderice
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       const columnas = [
         { header: "Fecha", key: "fecha" },
@@ -1944,6 +2017,9 @@ export default function EstadisticasHuerto() {
       
       // Iniciar progreso simulado
       iniciarProgresoSimulado(tiempoEstimadoSegundos);
+      
+      // Pequeño delay para asegurar que el modal se renderice
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       const columnas = [
         { header: "Fecha", key: "fecha" },
@@ -2821,7 +2897,7 @@ export default function EstadisticasHuerto() {
                     texto="Exportar PDF"
                     onClick={exportarSiembraPDF}
                     icono={<Download className="h-4 w-4" />}
-                    disabled={siembraData.length === 0}
+                    disabled={siembraData.length === 0 || Object.values(loadingReportes).some(loading => loading)}
                     isDarkMode={isDarkMode}
               />
             </div>
@@ -2989,7 +3065,7 @@ export default function EstadisticasHuerto() {
                     texto="Exportar PDF"
                     onClick={exportarAbonoPDF}
                     icono={<Download className="h-4 w-4" />}
-                    disabled={getTableData('abono').length === 0}
+                    disabled={getTableData('abono').length === 0 || Object.values(loadingReportes).some(loading => loading)}
                     isDarkMode={isDarkMode}
               />
             </div>
