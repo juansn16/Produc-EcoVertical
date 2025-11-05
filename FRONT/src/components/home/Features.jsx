@@ -35,7 +35,7 @@ const Features = () => {
     },
     {
       icon: '📱',
-      title: 'Acceso Móvil',
+      title: 'Acceso Tablet',
       description: 'Aplicación responsive que funciona en cualquier dispositivo, con notificaciones push y acceso offline limitado.',
       benefits: ['Diseño responsive', 'Notificaciones push', 'Sincronización automática']
     }

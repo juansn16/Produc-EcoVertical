@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useEventContext } from '../contexts/EventContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -35,47 +35,7 @@ const IrrigationAlertsPage = () => {
   const canManageAlerts = hasRole('administrador') || hasRole('tecnico');
   const canViewStats = hasRole('administrador');
 
-  useEffect(() => {
-    if (!canManageAlerts) {
-      setError('No tienes permisos para acceder a esta página');
-      setLoading(false);
-      return;
-    }
-
-    loadAlerts();
-    if (canViewStats) {
-      loadStats().then(() => {
-        // Después de cargar las estadísticas, actualizar el conteo de usuarios
-        loadConnectedUsersCount();
-      });
-    }
-  }, [canManageAlerts, canViewStats]);
-
-  // Manejar mensajes del WebSocket
-  useEffect(() => {
-    if (lastMessage) {
-      switch (lastMessage.type) {
-        case 'irrigationAlert':
-          console.log('🚨 Alerta de riego recibida:', lastMessage.data);
-          // Recargar alertas para mostrar cambios
-          loadAlerts();
-          break;
-        case 'preIrrigationAlert':
-          console.log('⏰ Pre-notificación de riego recibida:', lastMessage.data);
-          // Recargar alertas para mostrar cambios
-          loadAlerts();
-          break;
-        case 'newAlertNotification':
-          console.log('📢 Nueva notificación de alerta:', lastMessage.data);
-          loadAlerts();
-          break;
-        default:
-          break;
-      }
-    }
-  }, [lastMessage]);
-
-  const loadAlerts = async (page = 1) => {
+  const loadAlerts = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       const response = await irrigationAlertService.getAllAlerts({
@@ -95,7 +55,86 @@ const IrrigationAlertsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.limit]);
+
+  useEffect(() => {
+    if (!canManageAlerts) {
+      setError('No tienes permisos para acceder a esta página');
+      setLoading(false);
+      return;
+    }
+
+    loadAlerts();
+    if (canViewStats) {
+      loadStats().then(() => {
+        // Después de cargar las estadísticas, actualizar el conteo de usuarios
+        loadConnectedUsersCount();
+      });
+    }
+  }, [canManageAlerts, canViewStats, loadAlerts]);
+
+  // Manejar mensajes del WebSocket
+  useEffect(() => {
+    if (lastMessage) {
+      console.log('📨 Mensaje WebSocket recibido:', lastMessage);
+      switch (lastMessage.type) {
+        case 'irrigationAlert':
+          console.log('🚨 Alerta de riego recibida:', lastMessage.data);
+          // Verificar si es una alerta completada
+          if (lastMessage.data?.type === 'alert_completed') {
+            console.log('✅ Alerta completada recibida, actualizando lista:', lastMessage.data.alertId);
+            // Actualizar estado local optimistamente
+            setAlerts(prevAlerts => 
+              prevAlerts.map(alert => 
+                alert.id === lastMessage.data.alertId 
+                  ? { ...alert, estado: 'completada' }
+                  : alert
+              )
+            );
+            // Recargar alertas para asegurar sincronización
+            loadAlerts(pagination.page);
+            // Recargar estadísticas si tiene permisos
+            if (canViewStats) {
+              loadStats().then(() => {
+                loadConnectedUsersCount();
+              });
+            }
+          } else {
+            // Recargar alertas para mostrar cambios
+            loadAlerts(pagination.page);
+          }
+          break;
+        case 'preIrrigationAlert':
+          console.log('⏰ Pre-notificación de riego recibida:', lastMessage.data);
+          // Recargar alertas para mostrar cambios
+          loadAlerts(pagination.page);
+          break;
+        case 'newAlertNotification':
+          console.log('📢 Nueva notificación de alerta:', lastMessage.data);
+          loadAlerts(pagination.page);
+          break;
+        default:
+          // Si el mensaje tiene un tipo 'alert_completed' en data, también manejarlo
+          if (lastMessage.data?.type === 'alert_completed') {
+            console.log('✅ Alerta completada detectada en mensaje genérico:', lastMessage.data.alertId);
+            setAlerts(prevAlerts => 
+              prevAlerts.map(alert => 
+                alert.id === lastMessage.data.alertId 
+                  ? { ...alert, estado: 'completada' }
+                  : alert
+              )
+            );
+            loadAlerts(pagination.page);
+            if (canViewStats) {
+              loadStats().then(() => {
+                loadConnectedUsersCount();
+              });
+            }
+          }
+          break;
+      }
+    }
+  }, [lastMessage, pagination.page, canViewStats, loadAlerts]);
 
   const loadStats = async () => {
     try {
@@ -164,10 +203,20 @@ const IrrigationAlertsPage = () => {
   };
 
   const handleUpdateAlertStatus = async (alertId, newStatus) => {
+    // Actualización optimista: actualizar el estado local inmediatamente
+    setAlerts(prevAlerts => 
+      prevAlerts.map(alert => 
+        alert.id === alertId 
+          ? { ...alert, estado: newStatus }
+          : alert
+      )
+    );
+    
     try {
       const response = await irrigationAlertService.updateAlertStatus(alertId, newStatus);
       if (response.success) {
-        loadAlerts(pagination.page); // Recargar página actual
+        // Recargar alertas para asegurar sincronización con el servidor
+        loadAlerts(pagination.page);
         if (canViewStats) {
           loadStats().then(() => {
             loadConnectedUsersCount();
@@ -175,10 +224,14 @@ const IrrigationAlertsPage = () => {
         }
         return { success: true, message: 'Estado actualizado exitosamente' };
       } else {
+        // Si falla, revertir el cambio optimista recargando las alertas
+        loadAlerts(pagination.page);
         return { success: false, message: response.message || 'Error actualizando estado' };
       }
     } catch (err) {
       console.error('Error actualizando estado:', err);
+      // Si falla, revertir el cambio optimista recargando las alertas
+      loadAlerts(pagination.page);
       return { success: false, message: err.response?.data?.message || 'Error actualizando estado' };
     }
   };

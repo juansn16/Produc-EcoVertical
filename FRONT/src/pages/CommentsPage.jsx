@@ -48,6 +48,13 @@ export default function CommentsPage() {
   const [editingContent, setEditingContent] = useState('');
   const [newComment, setNewComment] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
+
+  // Función helper para convertir markdown básico a HTML
+  const renderMarkdownToHTML = (text) => {
+    if (!text) return '';
+    // Convertir **texto** a <strong>texto</strong>
+    return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  };
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -884,9 +891,10 @@ export default function CommentsPage() {
                       </h3>
                       
                       {/* Descripción del comentario */}
-                      <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed mb-3 line-clamp-3">
-                        {comment.contenido}
-                      </p>
+                      <p 
+                        className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed mb-3 line-clamp-3"
+                        dangerouslySetInnerHTML={{ __html: renderMarkdownToHTML(comment.contenido) }}
+                      />
                       
                       {/* Indicador de click */}
                       <div className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1 mb-2">
@@ -1072,13 +1080,21 @@ export default function CommentsPage() {
                   {/* Formulario de edición inline */}
                   {editingComment === comment.id && (
                     <div 
-                      className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200"
+                      className={`mt-3 p-3 rounded-xl border ${
+                        isDarkMode 
+                          ? 'bg-gray-700 border-gray-600' 
+                          : 'bg-gray-50 border-gray-200'
+                      }`}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <textarea
                         value={editingContent}
                         onChange={(e) => setEditingContent(e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E8B57] resize-none text-xs"
+                        className={`w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E8B57] resize-none text-xs ${
+                          isDarkMode
+                            ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400'
+                            : 'border-gray-300'
+                        }`}
                         rows="2"
                       />
                       <div className="flex gap-2 mt-2">
@@ -1090,7 +1106,11 @@ export default function CommentsPage() {
                         </button>
                         <button
                           onClick={() => setEditingComment(null)}
-                          className="px-2 py-1 bg-gray-300 text-gray-700 text-xs rounded-lg hover:bg-gray-400 transition-colors font-medium"
+                          className={`px-2 py-1 text-xs rounded-lg transition-colors font-medium ${
+                            isDarkMode
+                              ? 'bg-gray-600 text-gray-200 hover:bg-gray-500'
+                              : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+                          }`}
                         >
                           Cancelar
                         </button>
@@ -1768,9 +1788,10 @@ export default function CommentsPage() {
 
                         <div className="bg-white dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
                           <h4 className="font-semibold text-gray-800 dark:text-white mb-2">Descripción:</h4>
-                          <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
-                            {selectedComment.contenido}
-                          </p>
+                          <p 
+                            className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap"
+                            dangerouslySetInnerHTML={{ __html: renderMarkdownToHTML(selectedComment.contenido) }}
+                          />
                         </div>
                       </div>
                     </div>

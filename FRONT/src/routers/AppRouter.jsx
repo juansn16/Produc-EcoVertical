@@ -13,7 +13,6 @@ import { isAuthenticated } from "@/services/authService";
 import MapaTest from "@/components/garden/MapaTest";
 import MapaSimple from "@/components/garden/MapaSimple";
 import FormularioTest from "@/components/garden/FormularioTest";
-import WebSocketStatus from "@/components/WebSocketStatus";
 
 
 import AromaticasPage from "@/pages/AromaticasPage";
@@ -111,9 +110,6 @@ const AppRoutes = () => {
       {/* Redirección por defecto */}
       <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      
-      {/* Componente de estado WebSocket */}
-      <WebSocketStatus />
     </>
   );
 };

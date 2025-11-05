@@ -86,6 +86,7 @@ const Hero = () => {
                   <Boton 
                     texto="Comenzar Ahora"
                     variant="primary"
+                    onClick={() => navigate('/register')}
                   />
                   <Boton 
                     texto="Conocer Más"

@@ -102,6 +102,11 @@ const Footer = () => {
                 <span className="hidden sm:inline">Volver arriba</span>
               </button>
             </div>
+            <div className="mt-3 text-center">
+              <p className="text-xs opacity-70 m-0">
+                Desarrolladores: Viviana Faria, Angel Rangel, Juan Salazar
+              </p>
+            </div>
           </div>
         </div>
       </div>

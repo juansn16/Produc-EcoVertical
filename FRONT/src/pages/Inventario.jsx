@@ -477,10 +477,11 @@ function Inventario() {
             {canAccess('create_inventory') && (
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 dark:bg-green-600 text-white dark:text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-700 transition-colors font-medium shadow-lg hover:shadow-xl"
+                style={{ color: '#ffffff' }}
               >
-                <Plus size={20} />
-                Agregar Primer Ítem
+                <Plus size={20} style={{ color: '#ffffff' }} />
+                <span style={{ color: '#ffffff' }}>Agregar Primer Ítem</span>
               </button>
             )}
           </div>
@@ -699,8 +700,18 @@ function Inventario() {
 
       {/* Modal de historial de uso */}
       {isHistoryModalOpen && selectedItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="usage-history-modal-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsHistoryModalOpen(false);
+            }
+          }}
+        >
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
             <div className="p-6">
               <InventoryUsageHistory
                 itemId={selectedItem.id}

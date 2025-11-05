@@ -1,19 +1,50 @@
-import React, { useState, useEffect } from 'react';
-import { Package, Calendar, User, Tag, TrendingDown, Shield, AlertTriangle, Edit, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Package, Calendar, User, Tag, TrendingDown, Shield, AlertTriangle, Edit, Trash2, X } from 'lucide-react';
 import { commentsAPI } from '@/services/apiService';
 import { useInventoryCommentPermissions } from '@/hooks/useInventoryCommentPermissions';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 const InventoryUsageHistory = ({ itemId, itemName, onClose }) => {
   const { user: currentUser } = useAuth();
+  const { isDarkMode } = useTheme();
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [editingComment, setEditingComment] = useState(null);
   const [editContent, setEditContent] = useState('');
+  const modalRef = useRef(null);
+  const closeButtonRef = useRef(null);
+  const firstCommentRef = useRef(null);
   
   // Hook para permisos de comentarios de inventario
   const { permissions, loading: permissionsLoading, canEditComment, canDeleteComment } = useInventoryCommentPermissions(currentUser);
+
+  // Función helper para convertir markdown básico a HTML
+  const renderMarkdownToHTML = (text) => {
+    if (!text) return '';
+    // Convertir **texto** a <strong>texto</strong>
+    return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  };
+
+  // Manejo de teclado para cerrar modal con ESC
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
+
+  // Focus management: enfocar el botón de cerrar cuando se carga el modal
+  useEffect(() => {
+    if (closeButtonRef.current && !loading && comments.length > 0) {
+      closeButtonRef.current.focus();
+    }
+  }, [loading, comments.length]);
 
   // Cargar comentarios (todos pueden ver)
   useEffect(() => {
@@ -87,24 +118,42 @@ const InventoryUsageHistory = ({ itemId, itemName, onClose }) => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2 text-gray-600">Cargando historial...</span>
+      <div 
+        className="flex justify-center items-center py-8"
+        role="status"
+        aria-live="polite"
+        aria-label="Cargando historial de uso"
+      >
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" aria-hidden="true"></div>
+        <span className="ml-2 text-gray-600 dark:text-gray-300">Cargando historial...</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center py-8">
-        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Package className="w-8 h-8 text-red-500" />
+      <div 
+        className="text-center py-8"
+        role="alert"
+        aria-live="assertive"
+      >
+        <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+          isDarkMode ? 'bg-red-900/30' : 'bg-red-100'
+        }`}>
+          <Package className={`w-8 h-8 ${isDarkMode ? 'text-red-400' : 'text-red-500'}`} aria-hidden="true" />
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Error al cargar historial</h3>
-        <p className="text-gray-500 mb-4">{error}</p>
+        <h3 className={`text-lg font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          Error al cargar historial
+        </h3>
+        <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>{error}</p>
         <button
           onClick={onClose}
-          className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          className={`px-4 py-2 rounded-lg transition-colors ${
+            isDarkMode
+              ? 'bg-gray-600 text-white hover:bg-gray-500'
+              : 'bg-gray-600 text-white hover:bg-gray-700'
+          }`}
+          aria-label="Cerrar modal de error"
         >
           Cerrar
         </button>
@@ -114,17 +163,31 @@ const InventoryUsageHistory = ({ itemId, itemName, onClose }) => {
 
   if (comments.length === 0) {
     return (
-      <div className="text-center py-8">
-        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <TrendingDown className="w-8 h-8 text-gray-400" />
+      <div 
+        className="text-center py-8"
+        role="region"
+        aria-label="Sin historial de uso"
+      >
+        <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+          isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+        }`}>
+          <TrendingDown className={`w-8 h-8 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} aria-hidden="true" />
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Sin historial de uso</h3>
-        <p className="text-gray-500 mb-4">
+        <h3 className={`text-lg font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          Sin historial de uso
+        </h3>
+        <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
           No se ha registrado uso de este producto aún.
         </p>
         <button
           onClick={onClose}
-          className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          ref={closeButtonRef}
+          className={`px-4 py-2 rounded-lg transition-colors ${
+            isDarkMode
+              ? 'bg-gray-600 text-white hover:bg-gray-500'
+              : 'bg-gray-600 text-white hover:bg-gray-700'
+          }`}
+          aria-label="Cerrar modal"
         >
           Cerrar
         </button>
@@ -133,73 +196,147 @@ const InventoryUsageHistory = ({ itemId, itemName, onClose }) => {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between border-b border-gray-200 pb-4">
+    <div 
+      className="space-y-4"
+      ref={modalRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="history-title"
+      aria-describedby="history-description"
+    >
+      <div className={`flex items-center justify-between border-b pb-4 ${
+        isDarkMode ? 'border-gray-600' : 'border-gray-200'
+      }`}>
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 
+            id="history-title"
+            className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+          >
             Historial de Uso - {itemName}
           </h3>
-          <p className="text-sm text-gray-600">
+          <p 
+            id="history-description"
+            className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+          >
             Comentarios automáticos generados al usar el inventario
           </p>
         </div>
         <button
+          ref={closeButtonRef}
           onClick={onClose}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          className={`p-2 rounded-lg transition-colors ${
+            isDarkMode
+              ? 'hover:bg-gray-600 text-gray-300 hover:text-white'
+              : 'hover:bg-gray-100 text-gray-600'
+          }`}
+          aria-label="Cerrar historial de uso"
+          title="Cerrar (ESC)"
         >
-          <span className="sr-only">Cerrar</span>
-          ×
+          <X size={20} aria-hidden="true" />
+          <span className="sr-only">Cerrar modal</span>
         </button>
       </div>
 
-      <div className="space-y-4 max-h-96 overflow-y-auto">
+      <div 
+        className="space-y-4 max-h-96 overflow-y-auto"
+        role="list"
+        aria-label={`Lista de ${comments.length} usos registrados`}
+      >
         {comments.map((comment, index) => (
-          <div key={`${comment.id}-${index}-${comment.fecha_creacion}`} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+          <article 
+            key={`${comment.id}-${index}-${comment.fecha_creacion}`}
+            ref={index === 0 ? firstCommentRef : null}
+            className={`rounded-lg p-4 border ${
+              isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
+            }`}
+            role="listitem"
+            aria-labelledby={`comment-title-${comment.id}`}
+          >
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                  <Package className="w-4 h-4 text-green-600" />
+                <div 
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    isDarkMode ? 'bg-green-900/30' : 'bg-green-100'
+                  }`}
+                  aria-hidden="true"
+                >
+                  <Package className={`w-4 h-4 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">
+                  <h4 
+                    id={`comment-title-${comment.id}`}
+                    className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  >
                     Uso Automático de Inventario
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {comment.usuario_nombre ? `Por: ${comment.usuario_nombre}` : 'Generado automáticamente'}
+                  </h4>
+                  <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {comment.usuario_nombre ? (
+                      <>
+                        Por: <span className="font-semibold">{comment.usuario_nombre}</span>
+                      </>
+                    ) : (
+                      'Generado automáticamente'
+                    )}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 text-xs text-gray-500">
-                  <Calendar className="w-3 h-3" />
-                  {new Date(comment.fecha_creacion).toLocaleDateString('es-ES', {
+                <time 
+                  className={`flex items-center gap-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                  dateTime={new Date(comment.fecha_creacion).toISOString()}
+                  aria-label={`Fecha y hora: ${new Date(comment.fecha_creacion).toLocaleDateString('es-ES', {
                     year: 'numeric',
-                    month: 'short',
+                    month: 'long',
                     day: 'numeric',
                     hour: '2-digit',
                     minute: '2-digit'
-                  })}
-                </div>
+                  })}`}
+                >
+                  <Calendar className="w-3 h-3" aria-hidden="true" />
+                  <span>
+                    {new Date(comment.fecha_creacion).toLocaleDateString('es-ES', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
+                </time>
                 
                 {/* Botones de editar/eliminar basados en permisos */}
                 {(canEditComment(comment) || canDeleteComment(comment)) && (
-                  <div className="flex items-center gap-1">
+                  <div 
+                    className="flex items-center gap-1"
+                    role="group"
+                    aria-label="Acciones del comentario"
+                  >
                     {canEditComment(comment) && (
                       <button
                         onClick={() => handleEditComment(comment)}
-                        className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        className={`p-1 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                          isDarkMode
+                            ? 'text-gray-400 hover:text-blue-400 hover:bg-blue-900/30 focus:ring-offset-gray-700'
+                            : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50 focus:ring-offset-white'
+                        }`}
+                        aria-label={`Editar comentario del ${new Date(comment.fecha_creacion).toLocaleDateString('es-ES')}`}
                         title="Editar comentario"
                       >
-                        <Edit size={14} />
+                        <Edit size={14} aria-hidden="true" />
                       </button>
                     )}
                     {canDeleteComment(comment) && (
                       <button
                         onClick={() => handleDeleteComment(comment.id)}
-                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                        className={`p-1 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 ${
+                          isDarkMode
+                            ? 'text-gray-400 hover:text-red-400 hover:bg-red-900/30 focus:ring-offset-gray-700'
+                            : 'text-gray-400 hover:text-red-600 hover:bg-red-50 focus:ring-offset-white'
+                        }`}
+                        aria-label={`Eliminar comentario del ${new Date(comment.fecha_creacion).toLocaleDateString('es-ES')}`}
                         title="Eliminar comentario"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={14} aria-hidden="true" />
                       </button>
                     )}
                   </div>
@@ -209,50 +346,99 @@ const InventoryUsageHistory = ({ itemId, itemName, onClose }) => {
 
             <div className="prose prose-sm max-w-none">
               {editingComment && editingComment.id === comment.id ? (
-                <div className="space-y-3">
+                <form 
+                  className="space-y-3"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSaveEdit();
+                  }}
+                  aria-label="Formulario de edición de comentario"
+                >
+                  <label htmlFor={`edit-textarea-${comment.id}`} className="sr-only">
+                    Editar descripción del uso de inventario
+                  </label>
                   <textarea
+                    id={`edit-textarea-${comment.id}`}
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
+                      isDarkMode
+                        ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:ring-offset-gray-700'
+                        : 'border-gray-300 focus:ring-offset-white'
+                    }`}
                     rows={4}
                     placeholder="Editar comentario..."
+                    aria-label="Descripción del uso de inventario"
+                    aria-required="true"
                   />
-                  <div className="flex gap-2">
+                  <div className="flex gap-2" role="group" aria-label="Acciones del formulario">
                     <button
-                      onClick={handleSaveEdit}
-                      className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                      type="submit"
+                      className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                      aria-label="Guardar cambios"
                     >
                       Guardar
                     </button>
                     <button
+                      type="button"
                       onClick={() => {
                         setEditingComment(null);
                         setEditContent('');
                       }}
-                      className="px-3 py-1 bg-gray-500 text-white text-sm rounded hover:bg-gray-600 transition-colors"
+                      className={`px-3 py-1 text-white text-sm rounded transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 ${
+                        isDarkMode
+                          ? 'bg-gray-600 hover:bg-gray-500 focus:ring-offset-gray-700'
+                          : 'bg-gray-500 hover:bg-gray-600 focus:ring-offset-white'
+                      }`}
+                      aria-label="Cancelar edición"
                     >
                       Cancelar
                     </button>
                   </div>
-                </div>
+                </form>
               ) : (
                 <div 
-                  className="text-gray-700 whitespace-pre-line"
-                  dangerouslySetInnerHTML={{ 
-                    __html: comment.contenido.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') 
-                  }}
-                />
+                  className={`whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                  role="region"
+                  aria-label="Descripción del uso de inventario"
+                >
+                  {comment.contenido ? (
+                    <div
+                      dangerouslySetInnerHTML={{ 
+                        __html: renderMarkdownToHTML(comment.contenido)
+                      }}
+                    />
+                  ) : (
+                    <p className="italic text-sm opacity-75">
+                      Sin descripción disponible
+                    </p>
+                  )}
+                </div>
               )}
             </div>
 
             {comment.etiquetas && comment.etiquetas.length > 0 && (
-              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200">
-                <Tag className="w-3 h-3 text-gray-400" />
-                <div className="flex flex-wrap gap-1">
+              <div 
+                className={`flex items-center gap-2 mt-3 pt-3 border-t ${
+                  isDarkMode ? 'border-gray-600' : 'border-gray-200'
+                }`}
+                role="group"
+                aria-label="Etiquetas del comentario"
+              >
+                <Tag 
+                  className={`w-3 h-3 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+                  aria-hidden="true"
+                />
+                <div className="flex flex-wrap gap-1" role="list" aria-label="Lista de etiquetas">
                   {comment.etiquetas.map((tag, tagIndex) => (
                     <span
                       key={tagIndex}
-                      className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full"
+                      className={`px-2 py-1 text-xs rounded-full ${
+                        isDarkMode
+                          ? 'bg-blue-900/30 text-blue-300'
+                          : 'bg-blue-100 text-blue-700'
+                      }`}
+                      role="listitem"
                     >
                       {tag}
                     </span>
@@ -260,23 +446,34 @@ const InventoryUsageHistory = ({ itemId, itemName, onClose }) => {
                 </div>
               </div>
             )}
-          </div>
+          </article>
         ))}
       </div>
 
-      <div className="border-t border-gray-200 pt-4">
+      <footer className={`border-t pt-4 ${
+        isDarkMode ? 'border-gray-600' : 'border-gray-200'
+      }`}>
         <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-600">
-            Total de usos registrados: {comments.length}
+          <p 
+            className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            Total de usos registrados: <strong>{comments.length}</strong>
           </p>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            className={`px-4 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 ${
+              isDarkMode
+                ? 'bg-gray-600 text-white hover:bg-gray-500 focus:ring-offset-gray-800'
+                : 'bg-gray-600 text-white hover:bg-gray-700 focus:ring-offset-white'
+            }`}
+            aria-label="Cerrar historial de uso"
           >
             Cerrar
           </button>
         </div>
-      </div>
+      </footer>
     </div>
   );
 };

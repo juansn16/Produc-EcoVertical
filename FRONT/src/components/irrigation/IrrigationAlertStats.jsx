@@ -6,14 +6,22 @@ const IrrigationAlertStats = ({ stats, isDarkMode = false }) => {
 
   const { alerts, notifications, onlineUsers, serviceStats, alertasVencidas } = stats;
 
-  // Calcular totales
-  const totalAlerts = alerts.reduce((sum, alert) => sum + alert.cantidad, 0);
-  const totalNotifications = notifications.reduce((sum, notif) => sum + notif.cantidad, 0);
+  // Calcular totales - asegurando que los valores sean números válidos
+  const totalAlerts = (alerts || []).reduce((sum, alert) => {
+    const cantidad = parseInt(alert?.cantidad) || 0;
+    return sum + cantidad;
+  }, 0);
+  
+  // Calcular total de notificaciones - asegurando que sea un número válido y formateado
+  const totalNotifications = (notifications || []).reduce((sum, notif) => {
+    const cantidad = parseInt(notif?.cantidad) || 0;
+    return sum + cantidad;
+  }, 0);
 
-  // Encontrar alertas activas
-  const activeAlerts = alerts.find(alert => alert.estado === 'activa')?.cantidad || 0;
-  const completedAlerts = alerts.find(alert => alert.estado === 'completada')?.cantidad || 0;
-  const cancelledAlerts = alerts.find(alert => alert.estado === 'cancelada')?.cantidad || 0;
+  // Encontrar alertas activas - asegurando que sean números válidos
+  const activeAlerts = parseInt(alerts?.find(alert => alert.estado === 'activa')?.cantidad) || 0;
+  const completedAlerts = parseInt(alerts?.find(alert => alert.estado === 'completada')?.cantidad) || 0;
+  const cancelledAlerts = parseInt(alerts?.find(alert => alert.estado === 'cancelada')?.cantidad) || 0;
 
   const statCards = [
     {
@@ -110,30 +118,45 @@ const IrrigationAlertStats = ({ stats, isDarkMode = false }) => {
             Distribución de Alertas
           </h3>
           <div className="space-y-2">
-            {alerts.map((alert, index) => (
-              <div key={index} className="flex items-center justify-between">
-                <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} capitalize`}>
-                  {alert.estado}
-                </span>
-                <div className="flex items-center gap-2">
-                  <div className={`w-20 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'} rounded-full h-2`}>
-                    <div
-                      className={`h-2 rounded-full ${
-                        alert.estado === 'activa' ? 'bg-blue-500' :
-                        alert.estado === 'completada' ? 'bg-green-500' :
-                        'bg-red-500'
-                      }`}
-                      style={{
-                        width: `${totalAlerts > 0 ? (alert.cantidad / totalAlerts) * 100 : 0}%`
-                      }}
-                    ></div>
-                  </div>
-                  <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-900'} w-8 text-right`}>
-                    {alert.cantidad}
+            {alerts && alerts.length > 0 ? alerts.map((alert, index) => {
+              // Asegurar que cantidad sea un número válido
+              const cantidad = parseInt(alert?.cantidad) || 0;
+              // Calcular porcentaje basado en el total de alertas
+              const percentage = totalAlerts > 0 ? Math.round((cantidad / totalAlerts) * 100) : 0;
+              // Asegurar que el porcentaje no exceda 100%
+              const widthPercentage = Math.min(percentage, 100);
+              
+              return (
+                <div key={index} className="flex items-center justify-between">
+                  <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} capitalize`}>
+                    {alert.estado}
                   </span>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-20 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'} rounded-full h-2 overflow-hidden`}>
+                      <div
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          alert.estado === 'activa' ? 'bg-blue-500' :
+                          alert.estado === 'completada' ? 'bg-green-500' :
+                          alert.estado === 'cancelada' ? 'bg-red-500' :
+                          'bg-gray-500'
+                        }`}
+                        style={{
+                          width: `${widthPercentage}%`,
+                          minWidth: cantidad > 0 ? '2px' : '0'
+                        }}
+                      ></div>
+                    </div>
+                    <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-900'} w-8 text-right`}>
+                      {cantidad}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            }) : (
+              <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} text-center py-2`}>
+                No hay alertas registradas
+              </p>
+            )}
           </div>
         </div>
 
@@ -149,18 +172,6 @@ const IrrigationAlertStats = ({ stats, isDarkMode = false }) => {
                 serviceStats?.isSchedulerRunning ? 'text-green-600' : 'text-red-600'
               }`}>
                 {serviceStats?.isSchedulerRunning ? 'Activo' : 'Inactivo'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Conexiones WebSocket</span>
-              <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-                {serviceStats?.connectedSockets || 0}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Total de notificaciones</span>
-              <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-                {totalNotifications}
               </span>
             </div>
           </div>

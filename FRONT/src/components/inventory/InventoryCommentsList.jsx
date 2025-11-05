@@ -13,6 +13,13 @@ const InventoryCommentsList = ({
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [selectedComment, setSelectedComment] = useState(null);
 
+  // Función helper para convertir markdown básico a HTML
+  const renderMarkdownToHTML = (text) => {
+    if (!text) return '';
+    // Convertir **texto** a <strong>texto</strong>
+    return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  };
+
   // Verificar permisos para cada comentario
   useEffect(() => {
     if (comments && comments.length > 0) {
@@ -175,7 +182,10 @@ const InventoryCommentsList = ({
           </div>
 
           <div className="mb-3">
-            <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{comment.contenido}</p>
+            <p 
+              className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap"
+              dangerouslySetInnerHTML={{ __html: renderMarkdownToHTML(comment.contenido) }}
+            />
           </div>
 
           <div className="flex items-center justify-between text-sm">
