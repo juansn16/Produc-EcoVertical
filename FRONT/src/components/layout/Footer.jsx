@@ -1,14 +1,20 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
+import manualPdf from '../../docs/Manual de Usuario EcoVertical.pdf';
 
 const Footer = () => {
   const { isDarkMode } = useTheme();
   const currentYear = new Date().getFullYear();
 
   const footerLinks = [
-    { name: 'Términos de Servicio', href: '/terms' },
-    { name: 'Política de Privacidad', href: '/privacy' }
+    { name: 'Términos de Servicio', href: '/terms', type: 'internal' },
+    { name: 'Política de Privacidad', href: '/privacy', type: 'internal' },
+    {
+      name: 'Manual de Usuario',
+      href: manualPdf,
+      type: 'download'
+    }
   ];
 
   const socialLinks = [
@@ -57,15 +63,28 @@ const Footer = () => {
             <div className="flex items-center gap-6">
               {/* Enlaces legales */}
               <div className="flex gap-4">
-                {footerLinks.map((link, index) => (
-                  <Link 
-                    key={index}
-                    to={link.href} 
-                    className="text-white/70 no-underline text-sm transition-all duration-300 hover:text-eco-pear hover:translate-x-1"
-                  >
-                    {link.name}
-                  </Link>
-                ))}
+                {footerLinks.map((link, index) =>
+                  link.type === 'internal' ? (
+                    <Link
+                      key={index}
+                      to={link.href}
+                      className="text-white/70 no-underline text-sm transition-all duration-300 hover:text-eco-pear hover:translate-x-1"
+                    >
+                      {link.name}
+                    </Link>
+                  ) : (
+                    <a
+                      key={index}
+                      href={link.href}
+                      download="Manual-de-Usuario-EcoVertical.pdf"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-white/70 no-underline text-sm transition-all duration-300 hover:text-eco-pear hover:translate-x-1"
+                    >
+                      {link.name}
+                    </a>
+                  )
+                )}
               </div>
 
               {/* Redes sociales */}
