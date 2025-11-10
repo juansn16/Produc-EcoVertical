@@ -10,10 +10,10 @@ const router = express.Router();
 router.post('/generate', [authenticateJWT, authorizeRoles(['administrador', 'tecnico']), zodValidate(generateSchema)], reportController.generateReport);
 
 // POST /api/reports/test-analyze - Test de comunicación
-router.post('/test-analyze', [authenticateJWT, authorizeRoles(['administrador', 'tecnico'])], reportController.testAnalyze);
+router.post('/test-analyze', [authenticateJWT, authorizeRoles(['administrador', 'tecnico', 'residente'])], reportController.testAnalyze);
 
 // POST /api/reports/analyze - Análisis IA (Gemini) para PDFs
-router.post('/analyze', [authenticateJWT, authorizeRoles(['administrador', 'tecnico'])], reportController.analyzeReport);
+router.post('/analyze', [authenticateJWT, authorizeRoles(['administrador', 'tecnico', 'residente'])], reportController.analyzeReport);
 
 // GET /api/reports/{id} - Descarga con control de acceso
 router.get('/:id', [authenticateJWT, authorizeRoles(['administrador', 'tecnico', 'residente']), zodValidate(idParams, 'params')], reportController.downloadReport);
