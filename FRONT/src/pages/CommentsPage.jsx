@@ -935,7 +935,7 @@ export default function CommentsPage() {
                       {comment.tipo_comentario === 'abono' && (
                         <div className="mt-2 space-y-1">
                           <div className="text-xs bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-2 py-1 rounded-md inline-block">
-                            🍃 Abono: {comment.cantidad_abono ? `${parseFloat(comment.cantidad_abono)} kg` : 'No especificado'}
+                            🍃 Abono: {comment.cantidad_abono ? `${parseFloat(comment.cantidad_abono)} ${comment.unidad_abono || 'kg'}` : 'No especificado'}
                           </div>
                           {comment.cambio_tierra && (
                             <div className="text-xs bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-2 py-1 rounded-md inline-block">
@@ -1853,7 +1853,7 @@ export default function CommentsPage() {
                             </div>
                             <p className="text-orange-700 text-lg font-semibold">
                               {selectedComment.cantidad_abono ? 
-                                `${parseFloat(selectedComment.cantidad_abono)} kg` : 
+                                `${parseFloat(selectedComment.cantidad_abono)} ${selectedComment.unidad_abono || 'kg'}` : 
                                 'No especificada'
                               }
                             </p>

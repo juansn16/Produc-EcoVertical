@@ -122,7 +122,7 @@ export const useCommentPermissions = (gardenId, currentUser = null) => {
       create: 'No tienes permisos para crear comentarios en este huerto',
       edit: 'No tienes permisos para editar este comentario',
       delete: 'No tienes permisos para eliminar este comentario',
-      manage: 'Solo los administradores pueden gestionar residentes'
+      manage: 'Solo administradores o propietarios pueden gestionar residentes'
     };
 
     return messages[action] || 'No tienes permisos para realizar esta acción';

@@ -73,15 +73,7 @@ function SignInForm({ onLogin, isLoading = false, onShowPasswordReset, onClearEr
         </div>
       </div>
 
-      <div className="flex items-center justify-between animate-fade-in-up" style={{animationDelay: '0.4s'}}>
-        <label className="flex items-center">
-          <input
-            type="checkbox"
-            className="w-4 h-4 text-eco-mountain-meadow bg-theme-secondary dark:bg-theme-tertiary border-eco-pear dark:border-eco-pear/70 rounded focus:ring-eco-mountain-meadow focus:ring-2"
-            disabled={isLoading}
-          />
-          <span className="ml-2 text-sm text-theme-secondary">Recordarme</span>
-        </label>
+      <div className="flex items-center justify-end animate-fade-in-up" style={{animationDelay: '0.4s'}}>
         <button
           type="button"
           onClick={onShowPasswordReset}

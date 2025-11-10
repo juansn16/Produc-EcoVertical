@@ -1,6 +1,4 @@
 import React from 'react';
-import Boton from "@/components/layout/Boton";
-
 const Features = () => {
   const features = [
     {
@@ -87,17 +85,6 @@ const Features = () => {
           ))}
         </div>
 
-        <div className="bg-gradient-to-br from-bg-theme-primary to-bg-theme-tertiary rounded-3xl p-12 lg:p-16 border-2 border-border-theme-secondary text-center huertotech-fade-in">
-          <h3 className="text-3xl font-semibold text-theme-primary mb-4">¿Listo para optimizar tu huerto?</h3>
-          <p className="text-lg text-theme-secondary mb-8 max-w-lg mx-auto">
-            Únete a cientos de administradores que ya están revolucionando 
-            sus cultivos con nuestra plataforma
-          </p>
-          <Boton 
-            texto="Solicitar Demo Gratuita"
-            variant="primary"
-          />
-        </div>
       </div>
     </section>
   );

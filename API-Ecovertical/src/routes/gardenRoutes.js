@@ -33,7 +33,7 @@ router.get('/:gardenId', [authenticateJWT, authorizeRoles(['administrador', 'tec
 router.put('/:gardenId', [authenticateJWT, authorizeRoles(['administrador', 'tecnico', 'residente']), verifyGardenModificationPermissions, zodValidate(paramsGardenId, 'params'), zodValidate(updateGardenSchema)], gardenController.updateGarden);
 
 // DELETE /api/gardens/:gardenId - Eliminar jardín (Solo Admin)
-router.delete('/:gardenId', [authenticateJWT, authorizeRoles(['administrador']), zodValidate(paramsGardenId, 'params')], gardenController.deleteGarden);
+router.delete('/:gardenId', [authenticateJWT, authorizeRoles(['administrador', 'residente', 'tecnico']), zodValidate(paramsGardenId, 'params')], gardenController.deleteGarden);
 
 // POST /api/gardens/:gardenId/maintenance - Registrar mantenimiento (HU-0004)
 router.post('/:gardenId/maintenance', [authenticateJWT, authorizeRoles(['administrador', 'tecnico']), verifyGardenAccess, zodValidate(paramsGardenId, 'params'), zodValidate(maintenanceSchema)], gardenController.recordMaintenance);
@@ -48,16 +48,16 @@ router.get('/:gardenId/plants', [authenticateJWT, authorizeRoles(['administrador
 router.post('/:gardenId/data', [authenticateJWT, authorizeRoles(['administrador', 'tecnico', 'residente']), verifyGardenAccess, zodValidate(paramsGardenId, 'params'), zodValidate(gardenDataSchema)], gardenController.recordGardenData);
 
 // POST /api/gardens/:gardenId/assign - Asignar residente a jardín (Admin)
-router.post('/:gardenId/assign', [authenticateJWT, authorizeRoles(['administrador']), zodValidate(paramsGardenId, 'params'), zodValidate(assignSchema)], gardenController.assignResident);
+router.post('/:gardenId/assign', [authenticateJWT, authorizeRoles(['administrador', 'residente', 'tecnico']), zodValidate(paramsGardenId, 'params'), zodValidate(assignSchema)], gardenController.assignResident);
 
 // GET /api/gardens/:gardenId/residents - Obtener residentes de un huerto (Admin)
-router.get('/:gardenId/residents', [authenticateJWT, authorizeRoles(['administrador']), zodValidate(paramsGardenId, 'params')], gardenController.getGardenResidents);
+router.get('/:gardenId/residents', [authenticateJWT, authorizeRoles(['administrador', 'residente', 'tecnico']), zodValidate(paramsGardenId, 'params')], gardenController.getGardenResidents);
 
 // GET /api/gardens/:gardenId/residents/:userId/check - Verificar si un usuario está asignado a un huerto
 router.get('/:gardenId/residents/:userId/check', [authenticateJWT, zodValidate(paramsGardenIdAndUserId, 'params')], gardenController.checkUserGardenAssignment);
 
 // DELETE /api/gardens/:gardenId/residents/:userId - Eliminar residente de un huerto (Admin)
-router.delete('/:gardenId/residents/:userId', [authenticateJWT, authorizeRoles(['administrador']), zodValidate(paramsGardenIdAndUserId, 'params')], gardenController.removeResident);
+router.delete('/:gardenId/residents/:userId', [authenticateJWT, authorizeRoles(['administrador', 'residente', 'tecnico']), zodValidate(paramsGardenIdAndUserId, 'params')], gardenController.removeResident);
 
 // DELETE /api/gardens/:gardenId/unsubscribe - Darse de baja de un huerto (Residente)
 router.delete('/:gardenId/unsubscribe', [authenticateJWT, authorizeRoles(['residente']), zodValidate(paramsGardenId, 'params')], gardenController.unsubscribeFromGarden);

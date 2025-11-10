@@ -224,12 +224,6 @@ function AuthPage() {
               </div>
             </div>
             
-            {/* Información de credenciales de prueba */}
-            <div className="mt-8 p-4 bg-white/10 rounded-lg animate-fade-in-up" style={{animationDelay: '0.4s'}}>
-              <p className="text-sm font-medium mb-2">💡 Credenciales de prueba:</p>
-              <p className="text-xs opacity-90">juan@test.com / maria@test.com / carlos@test.com</p>
-              <p className="text-xs opacity-90">Contraseña: 123456</p>
-            </div>
           </div>
         </div>
 

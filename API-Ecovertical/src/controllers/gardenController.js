@@ -28,16 +28,32 @@ export const listGardens = async (req, res) => {
     
     // Usar la query centralizada para listar huertos con acceso
     const gardens = await db.query(GardenQueries.listWithAccess, [userId, userLocationId, userRole]);
+
+    // Aplicar filtro por tipo en memoria (evita mezclar públicos en la vista privada)
+    const validTypes = ['publico', 'privado'];
+    let filteredGardens = gardens.rows;
+
+    // Reglas adicionales para residentes: solo ver huertos privados que ellos crearon
+    if (userRole === 'residente') {
+      filteredGardens = filteredGardens.filter(garden => {
+        if (garden.tipo !== 'privado') return true;
+        return garden.usuario_creador === userId;
+      });
+    }
+    if (type && validTypes.includes(type)) {
+      filteredGardens = filteredGardens.filter(garden => garden.tipo === type);
+      console.log(`🔍 Filtro por tipo aplicado: ${type} -> ${filteredGardens.length} resultados`);
+    }
     
-    console.log('✅ Huertos encontrados:', gardens.rows.length);
-    gardens.rows.forEach(garden => {
+    console.log('✅ Huertos encontrados:', filteredGardens.length);
+    filteredGardens.forEach(garden => {
       console.log(`  - ${garden.nombre} (${garden.tipo}) - Acceso: ${garden.access_type}`);
     });
     
     res.json({
       success: true,
-      data: gardens.rows,
-      total: gardens.rows.length
+      data: filteredGardens,
+      total: filteredGardens.length
     });
   } catch (error) {
     console.error('Error al listar huertos:', error);
@@ -369,6 +385,8 @@ export const updateGarden = async (req, res) => {
 export const deleteGarden = async (req, res) => {
   try {
     const { gardenId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
     
     // Verificar que el huerto existe
     const gardenResult = await db.query(GardenQueries.getById, [gardenId]);
@@ -376,6 +394,50 @@ export const deleteGarden = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Huerto no encontrado'
+      });
+    }
+
+    const garden = gardenResult.rows[0];
+
+    const userInfoResult = await db.query(GardenQueries.checkUserExists, [userId]);
+    if (userInfoResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    const userLocationId = userInfoResult.rows[0].ubicacion_id;
+    const isAdmin = userRole === 'administrador';
+    const isTechnician = userRole === 'tecnico';
+    const isCreator = garden.usuario_creador === userId;
+    const isPrivateGarden = garden.tipo === 'privado';
+
+    if (isAdmin) {
+      if (garden.ubicacion_id !== userLocationId && !isCreator) {
+        return res.status(403).json({
+          success: false,
+          message: 'No puedes eliminar huertos de otros condominios'
+        });
+      }
+    } else if (isTechnician) {
+      if (garden.ubicacion_id !== userLocationId) {
+        return res.status(403).json({
+          success: false,
+          message: 'No puedes eliminar huertos de otros condominios'
+        });
+      }
+    } else if (userRole === 'residente') {
+      if (!isPrivateGarden || !isCreator) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puedes eliminar tus huertos privados'
+        });
+      }
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: 'No tienes permisos para eliminar este huerto'
       });
     }
     
@@ -561,20 +623,10 @@ export const assignResident = async (req, res) => {
   try {
     const { gardenId } = req.params;
     const { userId } = req.body;
-    const adminId = req.user.id;
-    const adminRole = req.user.role;
+    const managerId = req.user.id;
+    const managerRole = req.user.role;
     
-    console.log('🔍 assignResident - Parámetros:', { gardenId, userId, adminId, adminRole });
-
-    // Verificar permisos del administrador
-    if (adminRole !== 'administrador') {
-      console.log('❌ assignResident - Usuario no es administrador:', adminRole);
-      return res.status(403).json({
-        success: false,
-        message: 'Solo los administradores pueden asignar residentes a huertos'
-      });
-    }
-    console.log('✅ assignResident - Usuario es administrador');
+    console.log('🔍 assignResident - Parámetros:', { gardenId, userId, managerId, managerRole });
 
     // Verificar que el huerto existe
     const gardenResult = await db.query(GardenQueries.getById, [gardenId]);
@@ -587,23 +639,54 @@ export const assignResident = async (req, res) => {
 
     const garden = gardenResult.rows[0];
 
-    // Verificar que el administrador puede gestionar este huerto
-    const adminLocationResult = await db.query(GardenQueries.checkUserExists, [adminId]);
-    if (adminLocationResult.rows.length === 0) {
+    // Obtener información del usuario que gestiona la asignación
+    const managerInfoResult = await db.query(GardenQueries.checkUserExists, [managerId]);
+    if (managerInfoResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Administrador no encontrado'
+        message: 'Usuario no encontrado'
       });
     }
 
-    const adminLocationId = adminLocationResult.rows[0].ubicacion_id;
+    const managerLocationId = managerInfoResult.rows[0].ubicacion_id;
 
-    // Verificar que el huerto pertenece al mismo condominio que el administrador
-    if (garden.ubicacion_id !== adminLocationId && garden.usuario_creador !== adminId) {
-      return res.status(403).json({
-        success: false,
-        message: 'No puedes gestionar huertos de otros condominios'
-      });
+    const isAdmin = managerRole === 'administrador';
+    const isTechnician = managerRole === 'tecnico';
+    const isCreator = garden.usuario_creador === managerId;
+    const isPrivateGarden = garden.tipo === 'privado';
+
+    // Validar permisos: admins siempre, técnicos en su condominio, propietarios residentes en huertos privados propios
+    if (!isAdmin) {
+      if (isTechnician) {
+        if (garden.ubicacion_id !== managerLocationId) {
+          return res.status(403).json({
+            success: false,
+            message: 'Solo puedes gestionar huertos de tu mismo condominio'
+          });
+        }
+      } else if (managerRole === 'residente') {
+        if (!isCreator || !isPrivateGarden) {
+          return res.status(403).json({
+            success: false,
+            message: 'Solo puedes gestionar asignaciones de tus huertos privados'
+          });
+        }
+      } else {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para asignar residentes a este huerto'
+        });
+      }
+    }
+
+    // Verificar que el huerto pertenece al mismo condominio que el gestor (admins pueden gestionar cualquier huerto de su condominio o los que crearon)
+    if (isAdmin) {
+      if (garden.ubicacion_id !== managerLocationId && garden.usuario_creador !== managerId) {
+        return res.status(403).json({
+          success: false,
+          message: 'No puedes gestionar huertos de otros condominios'
+        });
+      }
     }
     
     // Verificar que el usuario existe
@@ -626,10 +709,10 @@ export const assignResident = async (req, res) => {
     }
 
     // Verificar que el usuario pertenece al mismo condominio que el administrador
-    if (user.ubicacion_id !== adminLocationId) {
+    if (user.ubicacion_id !== garden.ubicacion_id) {
       return res.status(403).json({
         success: false,
-        message: 'Solo puedes asignar residentes de tu mismo condominio'
+        message: 'Solo puedes asignar residentes del mismo condominio que el huerto'
       });
     }
     
@@ -884,16 +967,8 @@ export const unsubscribeFromGarden = async (req, res) => {
 export const getGardenResidents = async (req, res) => {
   try {
     const { gardenId } = req.params;
-    const adminId = req.user.id;
-    const adminRole = req.user.role;
-
-    // Verificar permisos del administrador
-    if (adminRole !== 'administrador') {
-      return res.status(403).json({
-        success: false,
-        message: 'Solo los administradores pueden ver los residentes de huertos'
-      });
-    }
+    const requesterId = req.user.id;
+    const requesterRole = req.user.role;
 
     // Verificar que el huerto existe
     const gardenResult = await db.query(GardenQueries.getById, [gardenId]);
@@ -906,23 +981,46 @@ export const getGardenResidents = async (req, res) => {
 
     const garden = gardenResult.rows[0];
 
-    // Verificar que el administrador puede gestionar este huerto
-    const adminLocationResult = await db.query(GardenQueries.checkUserExists, [adminId]);
-
-    if (adminLocationResult.rows.length === 0) {
+    const requesterInfoResult = await db.query(GardenQueries.checkUserExists, [requesterId]);
+    if (requesterInfoResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Administrador no encontrado'
+        message: 'Usuario no encontrado'
       });
     }
 
-    const adminLocationId = adminLocationResult.rows[0].ubicacion_id;
+    const requesterLocationId = requesterInfoResult.rows[0].ubicacion_id;
 
-    // Verificar que el huerto pertenece al mismo condominio que el administrador
-    if (garden.ubicacion_id !== adminLocationId && garden.usuario_creador !== adminId) {
+    const isAdmin = requesterRole === 'administrador';
+    const isTechnician = requesterRole === 'tecnico';
+    const isCreator = garden.usuario_creador === requesterId;
+    const isPrivateGarden = garden.tipo === 'privado';
+
+    if (isAdmin) {
+      if (garden.ubicacion_id !== requesterLocationId && garden.usuario_creador !== requesterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'No puedes gestionar huertos de otros condominios'
+        });
+      }
+    } else if (isTechnician) {
+      if (garden.ubicacion_id !== requesterLocationId) {
+        return res.status(403).json({
+          success: false,
+          message: 'No puedes gestionar huertos de otros condominios'
+        });
+      }
+    } else if (requesterRole === 'residente') {
+      if (!isPrivateGarden || !isCreator) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puedes gestionar residentes de tus huertos privados'
+        });
+      }
+    } else {
       return res.status(403).json({
         success: false,
-        message: 'No puedes gestionar huertos de otros condominios'
+        message: 'No tienes permisos para gestionar residentes de este huerto'
       });
     }
 
@@ -1005,21 +1103,10 @@ export const checkUserGardenAssignment = async (req, res) => {
 export const removeResident = async (req, res) => {
   try {
     const { gardenId, userId } = req.params;
-    const adminId = req.user.id;
-    const adminRole = req.user.role;
+    const managerId = req.user.id;
+    const managerRole = req.user.role;
 
-    console.log('🔍 removeResident - Parámetros:', { gardenId, userId, adminId, adminRole });
-
-    // Verificar permisos del administrador
-    if (adminRole !== 'administrador') {
-      console.log('❌ removeResident - Usuario no es administrador:', adminRole);
-      return res.status(403).json({
-        success: false,
-        message: 'Solo los administradores pueden eliminar residentes de huertos'
-      });
-    }
-
-    console.log('✅ removeResident - Usuario es administrador');
+    console.log('🔍 removeResident - Parámetros:', { gardenId, userId, managerId, managerRole });
 
     // Verificar que el huerto existe
     const gardenResult = await db.query(GardenQueries.getById, [gardenId]);
@@ -1033,23 +1120,48 @@ export const removeResident = async (req, res) => {
 
     const garden = gardenResult.rows[0];
 
-    // Verificar que el administrador puede gestionar este huerto
-    const adminLocationResult = await db.query(GardenQueries.checkUserExists, [adminId]);
+    // Obtener información del usuario que intenta gestionar
+    const managerInfoResult = await db.query(GardenQueries.checkUserExists, [managerId]);
 
-    if (adminLocationResult.rows.length === 0) {
+    if (managerInfoResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Administrador no encontrado'
+        message: 'Usuario no encontrado'
       });
     }
 
-    const adminLocationId = adminLocationResult.rows[0].ubicacion_id;
+    const managerLocationId = managerInfoResult.rows[0].ubicacion_id;
 
-    // Verificar que el huerto pertenece al mismo condominio que el administrador
-    if (garden.ubicacion_id !== adminLocationId && garden.usuario_creador !== adminId) {
+    const isAdmin = managerRole === 'administrador';
+    const isTechnician = managerRole === 'tecnico';
+    const isCreator = garden.usuario_creador === managerId;
+    const isPrivateGarden = garden.tipo === 'privado';
+
+    if (isAdmin) {
+      if (garden.ubicacion_id !== managerLocationId && garden.usuario_creador !== managerId) {
+        return res.status(403).json({
+          success: false,
+          message: 'No puedes gestionar huertos de otros condominios'
+        });
+      }
+    } else if (isTechnician) {
+      if (garden.ubicacion_id !== managerLocationId) {
+        return res.status(403).json({
+          success: false,
+          message: 'No puedes gestionar huertos de otros condominios'
+        });
+      }
+    } else if (managerRole === 'residente') {
+      if (!isPrivateGarden || !isCreator) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puedes gestionar residentes de tus huertos privados'
+        });
+      }
+    } else {
       return res.status(403).json({
         success: false,
-        message: 'No puedes gestionar huertos de otros condominios'
+        message: 'No tienes permisos para gestionar residentes de este huerto'
       });
     }
 

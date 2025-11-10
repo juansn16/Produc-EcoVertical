@@ -84,10 +84,23 @@ export const checkUserGardenAssignment = async (gardenId, userId) => {
     console.log('🔍 Verificando asignación usuario-huerto:', { gardenId, userId });
     const response = await api.get(`/gardens/${gardenId}/residents/${userId}/check`);
     console.log('✅ Verificación de asignación exitosa:', response.data);
-    return response.data.success && response.data.data.isAssigned;
+    if (response.data.success) {
+      const { isAssigned, assignment } = response.data.data;
+      return {
+        isAssigned: !!isAssigned,
+        assignment: assignment || null
+      };
+    }
+    return {
+      isAssigned: false,
+      assignment: null
+    };
   } catch (error) {
     console.error('❌ Error al verificar asignación:', error);
-    return false;
+    return {
+      isAssigned: false,
+      assignment: null
+    };
   }
 };
 
@@ -132,16 +145,17 @@ export const getCommentPermissions = async (gardenId, user) => {
     // Para residentes, verificar si está asignado al huerto
     if (userRole === 'residente') {
       console.log('🔍 getCommentPermissions - Usuario es residente, verificando asignación');
-      const isAssigned = await checkUserGardenAssignment(gardenId, user.id);
-      console.log('🔍 getCommentPermissions - Residente asignado:', isAssigned);
+      const { isAssigned, assignment } = await checkUserGardenAssignment(gardenId, user.id);
+      const isOwner = assignment?.rol === 'propietario';
+      console.log('🔍 getCommentPermissions - Residente asignado:', { isAssigned, isOwner, assignment });
       return {
         canView: true,
         canCreate: isAssigned,
         canEdit: isAssigned,
         canDelete: isAssigned,
-        canManageResidents: false,
-        canUnsubscribe: isAssigned,
-        reason: isAssigned ? 'residente_asignado' : 'residente_no_asignado'
+        canManageResidents: isOwner,
+        canUnsubscribe: isAssigned && !isOwner,
+        reason: isAssigned ? (isOwner ? 'residente_propietario' : 'residente_asignado') : 'residente_no_asignado'
       };
     }
 

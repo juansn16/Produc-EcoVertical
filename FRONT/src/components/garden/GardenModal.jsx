@@ -316,7 +316,7 @@ const GardenModal = ({ isOpen, onClose, gardenType, onGardenSelect, isDarkMode =
                       <div className="flex gap-2 mt-4">
                         <button
                           type="submit"
-                          className="bg-eco-mountain-meadow text-white px-4 py-2 rounded-lg hover:bg-eco-mountain-meadow-dark transition-colors"
+                          className="bg-eco-mountain-meadow text-white !text-white px-4 py-2 rounded-lg hover:bg-eco-mountain-meadow-dark transition-colors"
                         >
                           Crear Jardín
                         </button>
@@ -392,7 +392,7 @@ const GardenModal = ({ isOpen, onClose, gardenType, onGardenSelect, isDarkMode =
                       <div className="flex gap-2 mt-4">
                         <button
                           type="submit"
-                          className="bg-eco-mountain-meadow text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-eco-mountain-meadow-dark transition-colors text-sm sm:text-base"
+                          className="bg-eco-mountain-meadow text-white !text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-eco-mountain-meadow-dark transition-colors text-sm sm:text-base"
                         >
                           Crear Jardín Público
                         </button>

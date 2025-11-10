@@ -259,9 +259,10 @@ const Header = ({ type = "Home", onAddComment, totalItems, filteredCount, showDo
                 
                 {/* Botón de Alertas de Riego - Solo para admin/tecnico */}
                 {(() => {
-                  const canAccessAlerts = user?.role === 'administrador' || user?.role === 'tecnico';
+                  const userRole = user?.role || user?.rol;
+                  const canAccessAlerts = userRole === 'administrador' || userRole === 'tecnico';
                   logger.log('Verificando acceso a alertas de riego:', { 
-                    userRole: user?.role, 
+                    userRole, 
                     canAccessAlerts,
                     userId: user?.id 
                   });

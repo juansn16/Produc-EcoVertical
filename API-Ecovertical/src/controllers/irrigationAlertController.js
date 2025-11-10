@@ -360,11 +360,11 @@ export const deleteIrrigationAlert = async (req, res, next) => {
  */
 export const getIrrigationAlertStats = async (req, res, next) => {
   try {
-    // Solo administradores pueden ver estadísticas
-    if (req.user.role !== 'administrador') {
+    // Administradores y técnicos pueden ver estadísticas
+    if (req.user.role !== 'administrador' && req.user.role !== 'tecnico') {
       return res.status(403).json({
         success: false,
-        message: 'Solo administradores pueden ver estadísticas'
+        message: 'Solo administradores o técnicos pueden ver estadísticas'
       });
     }
 

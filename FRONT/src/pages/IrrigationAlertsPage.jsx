@@ -33,7 +33,7 @@ const IrrigationAlertsPage = () => {
 
   // Verificar permisos
   const canManageAlerts = hasRole('administrador') || hasRole('tecnico');
-  const canViewStats = hasRole('administrador');
+  const canViewStats = hasRole('administrador') || hasRole('tecnico');
 
   const loadAlerts = useCallback(async (page = 1) => {
     try {
