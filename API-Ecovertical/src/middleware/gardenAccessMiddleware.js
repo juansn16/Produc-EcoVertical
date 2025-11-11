@@ -32,6 +32,13 @@ export const verifyGardenAccess = async (req, res, next) => {
 
     const garden = gardenResult.rows[0];
 
+    // Consultar si el usuario está asignado al huerto (como colaborador/residente)
+    const assignmentResult = await db.query(
+      'SELECT rol FROM usuario_huerto WHERE usuario_id = $1 AND huerto_id = $2 AND is_deleted = false',
+      [userId, gardenId]
+    );
+    const isAssignedUser = assignmentResult.rows.length > 0;
+
     // Si es huerto privado
     if (garden.tipo === 'privado') {
       // El creador siempre puede acceder
@@ -42,21 +49,16 @@ export const verifyGardenAccess = async (req, res, next) => {
       else if (['administrador', 'tecnico'].includes(userRole) && garden.garden_location_id === garden.user_location_id) {
         console.log('✅ Acceso a huerto privado permitido - Admin/Técnico del mismo condominio');
       }
+      // Usuarios asignados (colaboradores/residentes)
+      else if (isAssignedUser) {
+        console.log('✅ Acceso a huerto privado permitido - Usuario asignado al huerto');
+      }
       // Verificar si el usuario es un residente asignado al huerto
       else {
-        const assignmentResult = await db.query(
-          'SELECT * FROM usuario_huerto WHERE usuario_id = $1 AND huerto_id = $2 AND is_deleted = false',
-          [userId, gardenId]
-        );
-
-        if (assignmentResult.rows.length > 0) {
-          console.log('✅ Acceso a huerto privado permitido - Usuario es residente asignado');
-        } else {
-          return res.status(403).json({
-            success: false,
-            message: 'No tienes permisos para acceder a este huerto privado'
-          });
-        }
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para acceder a este huerto privado'
+        });
       }
     }
 

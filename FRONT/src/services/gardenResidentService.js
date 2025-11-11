@@ -136,7 +136,7 @@ export const getCommentPermissions = async (gardenId, user) => {
         canCreate: true,
         canEdit: true,
         canDelete: true,
-        canManageResidents: userRole === 'administrador',
+        canManageResidents: true,
         canUnsubscribe: false,
         reason: userRole
       };

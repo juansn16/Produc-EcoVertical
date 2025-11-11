@@ -6,7 +6,7 @@ const PasswordInput = ({
   name,
   value,
   onChange,
-  placeholder = "••••••••",
+  placeholder = "Contraseña (8 caracteres)",
   className = "",
   required = false,
   disabled = false,

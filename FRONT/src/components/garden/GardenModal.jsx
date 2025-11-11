@@ -281,8 +281,8 @@ const GardenModal = ({ isOpen, onClose, gardenType, onGardenSelect, isDarkMode =
                           className={`px-3 py-2 border rounded-lg ${isDarkMode ? 'bg-gray-600 border-gray-500 text-gray-400' : 'bg-gray-100 border-gray-300 text-gray-600'} cursor-not-allowed`}
                         />
                         <input
-                           type="text"
-                           placeholder="Superficie (ej: 25 m²)"
+                          type="text"
+                          placeholder="Superficie total (ej: 25)"
                            value={createFormData.superficie}
                            onChange={(e) => setCreateFormData({...createFormData, superficie: e.target.value})}
                            className={`px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-eco-mountain-meadow text-sm sm:text-base ${isDarkMode ? 'bg-gray-600 border-gray-500 text-gray-100' : 'border-gray-300'}`}
@@ -298,21 +298,14 @@ const GardenModal = ({ isOpen, onClose, gardenType, onGardenSelect, isDarkMode =
                            <option value="Vertical">Vertical</option>
                          </select>
                       </div>
-                      <textarea
-                        placeholder="Descripción del jardín"
-                        value={createFormData.descripcion}
-                        onChange={(e) => setCreateFormData({...createFormData, descripcion: e.target.value})}
-                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-eco-mountain-meadow mt-4 ${isDarkMode ? 'bg-gray-600 border-gray-500 text-gray-100' : 'border-gray-300'}`}
-                        rows="3"
-                        required
-                      />
-                      <input
-                        type="url"
-                        placeholder="URL de la imagen del jardín (opcional)"
-                        value={createFormData.imagen_url}
-                        onChange={(e) => setCreateFormData({...createFormData, imagen_url: e.target.value})}
-                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-eco-mountain-meadow mt-4 ${isDarkMode ? 'bg-gray-600 border-gray-500 text-gray-100' : 'border-gray-300'}`}
-                      />
+                     <textarea
+                       placeholder="Descripción del jardín"
+                       value={createFormData.descripcion}
+                       onChange={(e) => setCreateFormData({...createFormData, descripcion: e.target.value})}
+                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-eco-mountain-meadow mt-4 ${isDarkMode ? 'bg-gray-600 border-gray-500 text-gray-100' : 'border-gray-300'}`}
+                       rows="3"
+                       required
+                     />
                       <div className="flex gap-2 mt-4">
                         <button
                           type="submit"
@@ -365,7 +358,7 @@ const GardenModal = ({ isOpen, onClose, gardenType, onGardenSelect, isDarkMode =
                         />
                         <input
                            type="text"
-                           placeholder="Superficie (ej: 25 m²)"
+                           placeholder="Superficie total (ej: 25)"
                            value={createFormData.superficie}
                            onChange={(e) => setCreateFormData({...createFormData, superficie: e.target.value})}
                            className={`px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-eco-mountain-meadow ${isDarkMode ? 'bg-gray-600 border-gray-500 text-gray-100' : 'border-gray-300'}`}

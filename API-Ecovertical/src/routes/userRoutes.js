@@ -35,8 +35,8 @@ router.get("/:id", protect, isAdmin, getUserById);
 router.put("/:id", protect, isAdmin, validateAdminUpdateUser, updateUserById);
 router.delete("/:id", protect, isAdmin, deleteUserById);
 
-// Gestión de roles por condominio (administradores y residentes para gestión de permisos)
-router.get("/condominium/users", protect, authorizeRoles(['administrador', 'residente']), validateGetCondominiumUsers, getCondominiumUsers);
+// Gestión de roles por condominio (administradores, técnicos y residentes para gestión de permisos)
+router.get("/condominium/users", protect, authorizeRoles(['administrador', 'tecnico', 'residente']), validateGetCondominiumUsers, getCondominiumUsers);
 router.put("/:id/assign-technician", protect, isAdmin, canManageCondominiumUsers, validateAssignTechnicianRole, assignTechnicianRole);
 router.put("/:id/remove-technician", protect, isAdmin, canManageCondominiumUsers, validateRemoveTechnicianRole, removeTechnicianRole);
 

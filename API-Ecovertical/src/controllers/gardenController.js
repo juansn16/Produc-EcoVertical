@@ -37,7 +37,7 @@ export const listGardens = async (req, res) => {
     if (userRole === 'residente') {
       filteredGardens = filteredGardens.filter(garden => {
         if (garden.tipo !== 'privado') return true;
-        return garden.usuario_creador === userId;
+        return garden.usuario_creador === userId || garden.access_type === 'asignado';
       });
     }
     if (type && validTypes.includes(type)) {
@@ -225,6 +225,8 @@ export const getGardenDetails = async (req, res) => {
     }
     
     const garden = gardenResult.rows[0];
+    const assignmentResult = await db.query(GardenQueries.checkUserGardenAccess, [userId, gardenId]);
+    const isAssignedUser = assignmentResult.rows.length > 0;
     
     // Verificar acceso según las nuevas reglas de seguridad
     if (garden.tipo === 'privado') {
@@ -235,6 +237,10 @@ export const getGardenDetails = async (req, res) => {
       // Admin y técnico pueden ver huertos privados de su condominio
       else if (['administrador', 'tecnico'].includes(userRole) && garden.ubicacion_id === garden.user_location_id) {
         console.log('✅ Acceso a huerto privado permitido - Admin/Técnico del mismo condominio');
+      }
+      // Usuarios asignados (colaboradores/residentes)
+      else if (isAssignedUser) {
+        console.log('✅ Acceso a huerto privado permitido - Usuario asignado al huerto');
       }
       // Otros casos: acceso denegado
       else {

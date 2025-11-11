@@ -65,7 +65,7 @@ function SignInForm({ onLogin, isLoading = false, onShowPasswordReset, onClearEr
             id="password"
             value={password}
             onChange={handlePasswordChange}
-            placeholder="••••••••"
+            placeholder="Contraseña (8 caracteres)"
             className="border border-eco-pear dark:border-eco-pear/70"
             required
             disabled={isLoading}

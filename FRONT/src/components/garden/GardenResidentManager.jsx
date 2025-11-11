@@ -18,7 +18,7 @@ import Modal from '../common/Modal';
 
 /**
  * Componente para gestionar residentes de un huerto
- * Solo visible y funcional para administradores
+ * Visible y funcional para administradores y técnicos
  */
 export default function GardenResidentManager({ gardenId, gardenName, currentUser, onResidentChange }) {
   const [residents, setResidents] = useState([]);
@@ -33,17 +33,17 @@ export default function GardenResidentManager({ gardenId, gardenName, currentUse
   const searchInputRef = useRef(null);
   const assignButtonRef = useRef(null);
 
-  // Verificar que el usuario es administrador
+  // Verificar que el usuario es administrador o técnico
   console.log('🔍 GardenResidentManager - Usuario actual:', currentUser);
   const userRole = currentUser?.rol || currentUser?.role;
   console.log('🔍 GardenResidentManager - Rol del usuario:', userRole);
   
-  if (userRole !== 'administrador') {
-    console.log('❌ GardenResidentManager - Usuario no es administrador, no renderizando');
+  if (!['administrador', 'tecnico'].includes(userRole)) {
+    console.log('❌ GardenResidentManager - Usuario no es administrador ni técnico, no renderizando');
     return null;
   }
   
-  console.log('✅ GardenResidentManager - Usuario es administrador, renderizando componente');
+  console.log('✅ GardenResidentManager - Usuario con permisos, renderizando componente');
 
   useEffect(() => {
     loadData();

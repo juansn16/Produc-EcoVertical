@@ -12,7 +12,7 @@ export const useCommentPermissions = (gardenId, currentUser = null) => {
     canCreate: false,   // Solo residentes asignados, técnicos y administradores
     canEdit: false,     // Solo el autor del comentario, técnicos y administradores
     canDelete: false,   // Solo el autor del comentario, técnicos y administradores
-    canManageResidents: false, // Solo administradores
+    canManageResidents: false, // Administradores, técnicos o propietarios
     canUnsubscribe: false,     // Solo residentes asignados
     reason: 'loading'   // Razón del permiso para debugging
   });
@@ -122,7 +122,7 @@ export const useCommentPermissions = (gardenId, currentUser = null) => {
       create: 'No tienes permisos para crear comentarios en este huerto',
       edit: 'No tienes permisos para editar este comentario',
       delete: 'No tienes permisos para eliminar este comentario',
-      manage: 'Solo administradores o propietarios pueden gestionar residentes'
+      manage: 'Solo administradores, técnicos o propietarios pueden gestionar residentes'
     };
 
     return messages[action] || 'No tienes permisos para realizar esta acción';
